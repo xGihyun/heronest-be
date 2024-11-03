@@ -1,6 +1,8 @@
 using System.Text.Json;
 using Dapper;
-using Heronest.Database;
+using Heronest.Internal.Auth;
+using Heronest.Internal.Database;
+using Heronest.Internal.User;
 using Microsoft.AspNetCore.Http.Json;
 using Npgsql;
 
@@ -19,6 +21,11 @@ public class Program
         var builder = WebApplication.CreateBuilder(args);
 
         SqlMapper.SetTypeMap(typeof(User), new SnakeCaseColumnNameMapper(typeof(User)));
+        SqlMapper.SetTypeMap(typeof(UserDetail), new SnakeCaseColumnNameMapper(typeof(UserDetail)));
+        SqlMapper.SetTypeMap(
+            typeof(UserResponse),
+            new SnakeCaseColumnNameMapper(typeof(UserResponse))
+        );
 
         // Add services to the container.
         builder.Services.AddAuthorization();
@@ -32,6 +39,19 @@ public class Program
             options.SerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower;
         });
 
+        var MyAllowSpecificOrigins = "_myAllowSpecificOrigins";
+
+        builder.Services.AddCors(options =>
+        {
+            options.AddPolicy(
+                MyAllowSpecificOrigins,
+                policy =>
+                {
+                    policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod();
+                }
+            );
+        });
+
         var app = builder.Build();
 
         // Configure the HTTP request pipeline.
@@ -41,45 +61,18 @@ public class Program
             app.UseSwaggerUI();
         }
 
+        app.UseCors();
         app.UseHttpsRedirection();
         app.UseAuthorization();
 
-        app.MapGet(
-                "/users",
-                (HttpContext httpContext) =>
-                {
-                    var sql = "SELECT * FROM users";
-                    var users = conn.Query<User>(sql).ToList();
+        var userService = new UserService(new UserRepository(conn));
+        var authService = new AuthService(new AuthRepository(conn));
 
-                    return users;
-                }
-            )
-            .WithName("GetUsers")
+        app.MapGet("/api/users/{userId}", userService.HandleGetById)
+            .WithName("GetUser")
             .WithOpenApi();
-
-        app.MapPost(
-            "/users",
-            (HttpContext httpContext) =>
-            {
-                using (var conn = new NpgsqlConnection(connectionString))
-                {
-                    var sql =
-                        @"
-                        INSERT INTO users (email, password, role) 
-                        VALUES (@Email, @Password, @Role::role)
-                        ";
-
-                    var user = new
-                    {
-                        Email = "test@gmail.com",
-                        Password = "password",
-                        Role = "admin",
-                    };
-
-                    conn.Execute(sql, user);
-                }
-            }
-        );
+        app.MapPost("/api/register", authService.HandleRegister).WithName("Register").WithOpenApi();
+        app.MapPost("/api/login", authService.HandleLogin).WithName("Login").WithOpenApi();
 
         app.Run();
     }

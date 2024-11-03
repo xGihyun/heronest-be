@@ -2,6 +2,8 @@ using System.ComponentModel.DataAnnotations.Schema;
 using System.Reflection;
 using Dapper;
 
+namespace Heronest.Internal.Database;
+
 public class SnakeCaseColumnNameMapper : SqlMapper.ITypeMap
 {
     private readonly Dictionary<string, string> _columnMappings = new();
