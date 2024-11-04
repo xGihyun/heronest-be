@@ -1,15 +1,12 @@
 namespace Heronest.Internal.Auth;
 
-using System.ComponentModel.DataAnnotations.Schema;
+using Heronest.Internal.User;
 
 public class RegisterRequest
 {
-    [Column("email")]
     public string Email { get; set; } = string.Empty;
 
-    [Column("password")]
     public string Password { get; set; } = string.Empty;
 
-    [Column("role")]
-    public string Role { get; set; } = string.Empty;
+    public Role Role { get; set; }
 }

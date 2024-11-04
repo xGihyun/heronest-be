@@ -1,8 +1,11 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Dapper;
+using Heronest.Internal.Api;
 using Heronest.Internal.Auth;
 using Heronest.Internal.Database;
 using Heronest.Internal.User;
+using Heronest.Internal.Venue;
 using Microsoft.AspNetCore.Http.Json;
 using Npgsql;
 
@@ -15,13 +18,17 @@ public class Program
         var connectionString =
             "Server=localhost;Port=5432;User Id=gihyun;Password=password;Database=heronest";
         var dataSourceBuilder = new NpgsqlDataSourceBuilder(connectionString);
+
+        dataSourceBuilder.MapEnum<Role>();
+        dataSourceBuilder.MapEnum<Sex>();
+
         await using var dataSource = dataSourceBuilder.Build();
         var conn = await dataSource.OpenConnectionAsync();
 
         var builder = WebApplication.CreateBuilder(args);
 
-        SqlMapper.SetTypeMap(typeof(User), new SnakeCaseColumnNameMapper(typeof(User)));
-        SqlMapper.SetTypeMap(typeof(UserDetail), new SnakeCaseColumnNameMapper(typeof(UserDetail)));
+        // NOTE:
+        // Map the types of classes that are used to fetch from the database
         SqlMapper.SetTypeMap(
             typeof(UserResponse),
             new SnakeCaseColumnNameMapper(typeof(UserResponse))
@@ -37,6 +44,9 @@ public class Program
         builder.Services.Configure<JsonOptions>(options =>
         {
             options.SerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower;
+            options.SerializerOptions.Converters.Add(
+                new JsonStringEnumConverter(JsonNamingPolicy.KebabCaseLower)
+            );
         });
 
         var MyAllowSpecificOrigins = "_myAllowSpecificOrigins";
@@ -65,14 +75,29 @@ public class Program
         app.UseHttpsRedirection();
         app.UseAuthorization();
 
-        var userService = new UserService(new UserRepository(conn));
-        var authService = new AuthService(new AuthRepository(conn));
+        var authController = new AuthController(new AuthRepository(conn));
 
-        app.MapGet("/api/users/{userId}", userService.HandleGetById)
+        app.MapPost("/api/register", ApiHandler.Handle(authController.Register))
+            .WithName("Register")
+            .WithOpenApi();
+        app.MapPost("/api/login", ApiHandler.Handle(authController.Login))
+            .WithName("Login")
+            .WithOpenApi();
+
+        var userController = new UserController(new UserRepository(conn));
+
+        app.MapGet("/api/users/{userId}", ApiHandler.Handle(userController.GetById))
             .WithName("GetUser")
             .WithOpenApi();
-        app.MapPost("/api/register", authService.HandleRegister).WithName("Register").WithOpenApi();
-        app.MapPost("/api/login", authService.HandleLogin).WithName("Login").WithOpenApi();
+        app.MapPost("/api/users/{userId}/details", ApiHandler.Handle(userController.CreateDetails))
+            .WithName("CreateUserDetail")
+            .WithOpenApi();
+
+        var venueController = new VenueController(new VenueRepository(conn));
+
+        app.MapPost("/api/venues", ApiHandler.Handle(venueController.Create))
+            .WithName("CreateVenue")
+            .WithOpenApi();
 
         app.Run();
     }

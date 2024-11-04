@@ -2,34 +2,76 @@ using System.Text.Json.Serialization;
 
 namespace Heronest.Internal.Api;
 
+[JsonConverter(typeof(JsonStringEnumConverter))]
+public enum ApiResponseStatus
+{
+    Success,
+    Fail,
+    Error,
+}
+
 public class ApiResponse
 {
-    public string Status { get; set; }
+    public ApiResponseStatus Status { get; set; }
     public object? Data { get; set; }
     public int StatusCode { get; set; }
     public string? Message { get; set; }
 
-    [JsonIgnore] // To prevent it from being serialized
+    [JsonIgnore]
     public Exception? Error { get; set; }
 }
 
-public delegate ApiResponse RequestHandler(HttpContext context);
+public delegate Task<ApiResponse> ApiEndpointHandler(HttpContext context);
 
 public class ApiHandler
 {
-    private readonly RequestHandler handler;
-
-    public ApiHandler(RequestHandler handler)
+    public static Delegate Handle(ApiEndpointHandler handler)
     {
-        this.handler = handler;
-    }
+        return async Task<IResult> (HttpContext context) =>
+        {
+            try
+            {
+                var response = await handler(context);
 
-    public ApiResponse Handle(HttpContext context)
-    {
-        var response = handler(context);
+                return Results.Json(response, statusCode: response.StatusCode);
+            }
+            catch (Exception ex)
+            {
+                var response = new ApiResponse
+                {
+                    Status = ApiResponseStatus.Error,
+                    StatusCode = StatusCodes.Status500InternalServerError,
+                    Message = ex.Message,
+                };
 
-        context.Response.StatusCode = response.StatusCode;
-
-        return response;
+                return Results.Json(response, statusCode: response.StatusCode);
+            }
+        };
     }
 }
+
+
+/*public static class ApiHandler*/
+/*{*/
+/*    public static Func<HttpContext, Task<IResult>> Handle(Func<HttpContext, Task<ApiResponse>> handler) */
+/*    {*/
+/*        return async (HttpContext context) =>*/
+/*        {*/
+/*            try*/
+/*            {*/
+/*                var response = await handler(context);*/
+/*                return Results.Json(response, statusCode: response.StatusCode);*/
+/*            }*/
+/*            catch (Exception ex)*/
+/*            {*/
+/*                var response = new ApiResponse*/
+/*                {*/
+/*                    Status = ApiResponseStatus.Error,*/
+/*                    StatusCode = StatusCodes.Status500InternalServerError,*/
+/*                    Message = ex.Message,*/
+/*                };*/
+/*                return Results.Json(response, statusCode: response.StatusCode);*/
+/*            }*/
+/*        };*/
+/*    }*/
+/*}*/

@@ -1,5 +1,4 @@
 using System.ComponentModel.DataAnnotations.Schema;
-using System.Runtime.Serialization;
 using System.Text.Json.Serialization;
 using Dapper;
 using Npgsql;
@@ -9,7 +8,6 @@ namespace Heronest.Internal.User;
 [JsonConverter(typeof(JsonStringEnumConverter))]
 public enum Role
 {
-    [EnumMember(Value = "admin")] // Doesn't work?
     Admin,
     Staff,
     Student,
@@ -35,7 +33,7 @@ public class User
     public string Password { get; set; } = string.Empty;
 
     [Column("role")]
-    public string Role { get; set; }
+    public Role Role { get; set; }
 }
 
 public class UserResponse
@@ -47,17 +45,18 @@ public class UserResponse
     public string Email { get; set; } = string.Empty;
 
     [Column("role")]
-    public string Role { get; set; }
+    public Role Role { get; set; }
 }
 
 public interface IUserRepository
 {
     Task<UserResponse> GetById(Guid userId);
+    Task CreateDetails(UserDetailRequest data);
 }
 
 public class UserRepository : IUserRepository
 {
-    NpgsqlConnection conn;
+    private NpgsqlConnection conn;
 
     public UserRepository(NpgsqlConnection conn)
     {
@@ -75,5 +74,27 @@ public class UserRepository : IUserRepository
         var user = await conn.QuerySingleAsync<UserResponse>(sql, new { UserId = userId });
 
         return user;
+    }
+
+    public async Task CreateDetails(UserDetailRequest data)
+    {
+        var sql =
+            @"
+            INSERT INTO user_details (first_name, middle_name, last_name, birth_date, sex, user_id)
+            VALUES (@FirstName, @MiddleName, @LastName, @BirthDate, @Sex::sex, @UserId)
+            ";
+
+        await this.conn.ExecuteAsync(
+            sql,
+            new
+            {
+                FirstName = data.FirstName,
+                MiddleName = data.MiddleName,
+                LastName = data.LastName,
+                BirthDate = data.BirthDate,
+                Sex = data.Sex.ToString().ToLower(),
+                UserId = data.UserId,
+            }
+        );
     }
 }

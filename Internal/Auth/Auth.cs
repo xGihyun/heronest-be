@@ -11,11 +11,11 @@ public interface IAuthRepository
 
 public class AuthRepository : IAuthRepository
 {
-    private readonly NpgsqlConnection _conn;
+    private readonly NpgsqlConnection conn;
 
     public AuthRepository(NpgsqlConnection conn)
     {
-        this._conn = conn;
+        this.conn = conn;
     }
 
     public async Task Register(RegisterRequest data)
@@ -26,7 +26,15 @@ public class AuthRepository : IAuthRepository
             VALUES (@Email, @Password, @Role::role)
             ";
 
-        await this._conn.ExecuteAsync(sql, data);
+        await this.conn.ExecuteAsync(
+            sql,
+            new
+            {
+                Email = data.Email,
+                Password = data.Password,
+                Role = data.Role.ToString().ToLower(),
+            }
+        );
     }
 
     public async Task Login(LoginRequest data)
@@ -38,6 +46,6 @@ public class AuthRepository : IAuthRepository
             WHERE email = @Email AND password = @Password
             ";
 
-        await this._conn.QuerySingleAsync(sql, data);
+        await this.conn.QuerySingleAsync(sql, data);
     }
 }

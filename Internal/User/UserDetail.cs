@@ -10,7 +10,6 @@ public enum Sex
 {
     [PgName("male")]
     Male,
-
     [PgName("female")]
     Female,
 }
@@ -39,4 +38,19 @@ public class UserDetail
 
     [Column("sex")]
     public Sex Sex { get; set; }
+}
+
+public class UserDetailRequest
+{
+    public string FirstName { get; set; } = string.Empty;
+
+    public string? MiddleName { get; set; }
+
+    public string LastName { get; set; } = string.Empty;
+
+    public DateTime BirthDate { get; set; }
+
+    public Sex Sex { get; set; }
+
+    public Guid UserId { get; set; }
 }
