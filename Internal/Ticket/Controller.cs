@@ -1,28 +1,37 @@
-using System.ComponentModel.DataAnnotations.Schema;
-using System.Text.Json.Serialization;
-using Dapper;
-using Npgsql;
+using Heronest.Internal.Api;
 
 namespace Heronest.Internal.Ticket;
 
-[JsonConverter(typeof(JsonStringEnumConverter))]
-public enum TicketStatus
+public class TicketController
 {
-    Reserved,
-    Used,
-    Canceled,
-}
+    private readonly ITicketRepository repository;
 
-public class TicketRequest { 
-    [Column("metadata")]
-    public object? Metadata {get; set;}
+    public TicketController(ITicketRepository ticketRepository)
+    {
+        this.repository = ticketRepository;
+    }
 
-    [Column("user_id")]
-    public Guid UserId {get; set;}
+    public async Task<ApiResponse> CreateTicket(HttpContext context)
+    {
+        var data = await context.Request.ReadFromJsonAsync<TicketRequest>();
 
-    [Column("event_id")]
-    public Guid EventId {get; set;}
+        if (data is null)
+        {
+            return new ApiResponse
+            {
+                Status = ApiResponseStatus.Fail,
+                StatusCode = StatusCodes.Status400BadRequest,
+            };
+        }
+        await this.repository.CreateTicket(data);
+        return new ApiResponse
+        {
+            Status = ApiResponseStatus.Success,
+            StatusCode = StatusCodes.Status201Created,
+            Message = "API response success"
+        };
+    }
 
-    [Column("seat_id")]
-    public Guid SeatId {get; set;}
+
+
 }
