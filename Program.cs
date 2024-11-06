@@ -1,6 +1,11 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Dapper;
-using Heronest.Database;
+using Heronest.Internal.Api;
+using Heronest.Internal.Auth;
+using Heronest.Internal.Database;
+using Heronest.Internal.User;
+using Heronest.Internal.Venue;
 using Microsoft.AspNetCore.Http.Json;
 using Npgsql;
 
@@ -13,12 +18,21 @@ public class Program
         var connectionString =
             "Server=localhost;Port=5432;User Id=gihyun;Password=password;Database=heronest";
         var dataSourceBuilder = new NpgsqlDataSourceBuilder(connectionString);
+
+        dataSourceBuilder.MapEnum<Role>();
+        dataSourceBuilder.MapEnum<Sex>();
+
         await using var dataSource = dataSourceBuilder.Build();
         var conn = await dataSource.OpenConnectionAsync();
 
         var builder = WebApplication.CreateBuilder(args);
 
-        SqlMapper.SetTypeMap(typeof(User), new SnakeCaseColumnNameMapper(typeof(User)));
+        // NOTE:
+        // Map the types of classes that are used to fetch from the database
+        SqlMapper.SetTypeMap(
+            typeof(UserResponse),
+            new SnakeCaseColumnNameMapper(typeof(UserResponse))
+        );
 
         // Add services to the container.
         builder.Services.AddAuthorization();
@@ -30,6 +44,22 @@ public class Program
         builder.Services.Configure<JsonOptions>(options =>
         {
             options.SerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower;
+            options.SerializerOptions.Converters.Add(
+                new JsonStringEnumConverter(JsonNamingPolicy.KebabCaseLower)
+            );
+        });
+
+        var MyAllowSpecificOrigins = "_myAllowSpecificOrigins";
+
+        builder.Services.AddCors(options =>
+        {
+            options.AddPolicy(
+                MyAllowSpecificOrigins,
+                policy =>
+                {
+                    policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod();
+                }
+            );
         });
 
         var app = builder.Build();
@@ -41,45 +71,33 @@ public class Program
             app.UseSwaggerUI();
         }
 
+        app.UseCors();
         app.UseHttpsRedirection();
         app.UseAuthorization();
 
-        app.MapGet(
-                "/users",
-                (HttpContext httpContext) =>
-                {
-                    var sql = "SELECT * FROM users";
-                    var users = conn.Query<User>(sql).ToList();
+        var authController = new AuthController(new AuthRepository(conn));
 
-                    return users;
-                }
-            )
-            .WithName("GetUsers")
+        app.MapPost("/api/register", ApiHandler.Handle(authController.Register))
+            .WithName("Register")
+            .WithOpenApi();
+        app.MapPost("/api/login", ApiHandler.Handle(authController.Login))
+            .WithName("Login")
             .WithOpenApi();
 
-        app.MapPost(
-            "/users",
-            (HttpContext httpContext) =>
-            {
-                using (var conn = new NpgsqlConnection(connectionString))
-                {
-                    var sql =
-                        @"
-                        INSERT INTO users (email, password, role) 
-                        VALUES (@Email, @Password, @Role::role)
-                        ";
+        var userController = new UserController(new UserRepository(conn));
 
-                    var user = new
-                    {
-                        Email = "test@gmail.com",
-                        Password = "password",
-                        Role = "admin",
-                    };
+        app.MapGet("/api/users/{userId}", ApiHandler.Handle(userController.GetById))
+            .WithName("GetUser")
+            .WithOpenApi();
+        app.MapPost("/api/users/{userId}/details", ApiHandler.Handle(userController.CreateDetails))
+            .WithName("CreateUserDetail")
+            .WithOpenApi();
 
-                    conn.Execute(sql, user);
-                }
-            }
-        );
+        var venueController = new VenueController(new VenueRepository(conn));
+
+        app.MapPost("/api/venues", ApiHandler.Handle(venueController.Create))
+            .WithName("CreateVenue")
+            .WithOpenApi();
 
         app.Run();
     }
