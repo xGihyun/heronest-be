@@ -1,4 +1,3 @@
-using System.ComponentModel;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
 using Dapper;
@@ -14,42 +13,42 @@ public enum TicketStatus
     Canceled,
 }
 
-public class TicketRequest { 
+public class CreateTicketRequest
+{
     [Column("metadata")]
-    public object? Metadata {get; set;}
+    public object? Metadata { get; set; }
 
     [Column("user_id")]
-    public Guid UserId {get; set;}
+    public Guid UserId { get; set; }
 
-    [Column("event_id")]
-    public Guid EventId {get; set;}
+    [Column("event_occurrence_id")]
+    public Guid EventOccurrenceId { get; set; }
 
     [Column("seat_id")]
-    public Guid SeatId {get; set;}
+    public Guid SeatId { get; set; }
 }
 
+public interface ITicketRepository
+{
+    Task Create(CreateTicketRequest data);
+}
 
- public interface ITicketRepository
- {
-    Task CreateTicket(TicketRequest data);
- }
-
- public class TicketRepository:ITicketRepository
- {
-     private NpgsqlConnection conn;
+public class TicketRepository : ITicketRepository
+{
+    private NpgsqlConnection conn;
 
     public TicketRepository(NpgsqlConnection conn)
     {
         this.conn = conn;
     }
 
-    public async Task CreateTicket(TicketRequest data)
+    public async Task Create(CreateTicketRequest data)
     {
-        var sql = 
-        @"
+        var sql =
+            @"
         
         ";
         await conn.ExecuteAsync(sql);
     }
+}
 
- }
