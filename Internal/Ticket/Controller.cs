@@ -28,10 +28,8 @@ public class TicketController
         {
             Status = ApiResponseStatus.Success,
             StatusCode = StatusCodes.Status201Created,
-            Message = "API response success"
+            Message = "API response success",
         };
     }
-
-
-
 }
+
