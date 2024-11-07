@@ -13,7 +13,7 @@ public enum TicketStatus
     Canceled,
 }
 
-public class TicketRequest
+public class CreateTicketRequest
 {
     [Column("metadata")]
     public object? Metadata { get; set; }
@@ -21,8 +21,8 @@ public class TicketRequest
     [Column("user_id")]
     public Guid UserId { get; set; }
 
-    [Column("event_id")]
-    public Guid EventId { get; set; }
+    [Column("event_occurrence_id")]
+    public Guid EventOccurrenceId { get; set; }
 
     [Column("seat_id")]
     public Guid SeatId { get; set; }
@@ -30,7 +30,7 @@ public class TicketRequest
 
 public interface ITicketRepository
 {
-    Task CreateTicket(TicketRequest data);
+    Task Create(CreateTicketRequest data);
 }
 
 public class TicketRepository : ITicketRepository
@@ -42,7 +42,7 @@ public class TicketRepository : ITicketRepository
         this.conn = conn;
     }
 
-    public async Task CreateTicket(TicketRequest data)
+    public async Task Create(CreateTicketRequest data)
     {
         var sql =
             @"
