@@ -26,7 +26,7 @@ public class AuthRepository : IAuthRepository
             VALUES (@Email, @Password, @Role::role)
             ";
 
-        await this.conn.ExecuteAsync(
+        await this.conn.ExecuteAsync(   
             sql,
             new
             {

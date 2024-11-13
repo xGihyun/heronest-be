@@ -1,5 +1,7 @@
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Diagnostics;
 using System.Text.Json.Serialization;
+using NanoidDotNet;
 using Dapper;
 using Npgsql;
 
@@ -28,9 +30,25 @@ public class CreateTicketRequest
     public Guid SeatId { get; set; }
 }
 
+public class CreateTicketResponse
+{
+    [Column("ticket_number")]
+    public String TicketNumber { get; set; } = String.Empty;
+}
+
+public class UpdateTicketRequest
+{
+    [Column("ticket_id")]
+    public Guid TicketId {get; set;}
+
+    [Column("status")]
+    public TicketStatus Status {get; set;}
+    
+}
 public interface ITicketRepository
 {
-    Task Create(CreateTicketRequest data);
+    Task<CreateTicketResponse> Create(CreateTicketResponse data);
+    Task Update(UpdateTicketRequest data);
 }
 
 public class TicketRepository : ITicketRepository
@@ -41,14 +59,40 @@ public class TicketRepository : ITicketRepository
     {
         this.conn = conn;
     }
-
-    public async Task Create(CreateTicketRequest data)
+ 
+    public async  Task<CreateTicketResponse> Create(CreateTicketResponse data) 
     {
-        var sql =
-            @"
+
+        var TicketNumberId = Nanoid.Generate(size:10);
         
+        var sql =
+        @"
+        INSERT INTO tickets(metadata, user_id, event_occurrence_id, seat_id)
+        VALUES(@Metadata, @UserId, @EventOccurrenceId, @SeatId)
+        RETURNING ticket_id
+        ";  
+
+        await conn.ExecuteAsync(sql);
+        return  new CreateTicketResponse{TicketNumber = TicketNumberId};
+
+
+    }
+    
+    // Update   
+    public async Task Update(UpdateTicketRequest data) 
+    {
+
+        var sql =
+         @"
+         UPDATE tickets 
+         SET ticket_id = @TicketId, 
+         status = @Status
+         WHERE ticket_id = @TicketId
         ";
+
         await conn.ExecuteAsync(sql);
     }
+
+    
 }
 
