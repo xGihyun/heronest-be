@@ -44,7 +44,7 @@ public class VenueRepository : IVenueRepository
             VALUES (@Name, @Description, @Capacity, @Location, @ImageUrl)
             ";
 
-        await this.conn.ExecuteAsync(sql, data);
+        await this.conn.ExecuteAsync(sql);
     }
 }
 

@@ -17,6 +17,7 @@ public enum TicketStatus
 
 public class CreateTicketRequest
 {
+
     [Column("metadata")]
     public object? Metadata { get; set; }
 
@@ -28,6 +29,8 @@ public class CreateTicketRequest
 
     [Column("seat_id")]
     public Guid SeatId { get; set; }
+
+    
 }
 
 public class CreateTicketResponse
@@ -38,16 +41,19 @@ public class CreateTicketResponse
 
 public class UpdateTicketRequest
 {
+
     [Column("ticket_id")]
-    public Guid TicketId {get; set;}
+    public Guid TicketId { get; set; }
+
 
     [Column("status")]
-    public TicketStatus Status {get; set;}
-    
+    public TicketStatus Status { get; set; }
+
 }
 public interface ITicketRepository
 {
-    Task<CreateTicketResponse> Create(CreateTicketResponse data);
+
+    Task<CreateTicketResponse> Create(CreateTicketRequest data);
     Task Update(UpdateTicketRequest data);
 }
 
@@ -59,40 +65,41 @@ public class TicketRepository : ITicketRepository
     {
         this.conn = conn;
     }
- 
-    public async  Task<CreateTicketResponse> Create(CreateTicketResponse data) 
-    {
 
-        var TicketNumberId = Nanoid.Generate(size:10);
-        
-        var sql =
-        @"
-        INSERT INTO tickets(metadata, user_id, event_occurrence_id, seat_id)
-        VALUES(@Metadata, @UserId, @EventOccurrenceId, @SeatId)
+    public async Task<CreateTicketResponse> Create(CreateTicketRequest data)
+    {
+        var TicketNumberId = Nanoid.Generate(size: 10);
+        var sql = @"
+        INSERT INTO tickets(metadata, user_id, event_occurrence_id, seat_id, ticket_number)
+        VALUES(@Metadata, @UserId, @EventOccurrenceId, @SeatId, @TicketNumber)
         RETURNING ticket_id
-        ";  
-
-        await conn.ExecuteAsync(sql);
-        return  new CreateTicketResponse{TicketNumber = TicketNumberId};
-
-
-    }
-    
-    // Update   
-    public async Task Update(UpdateTicketRequest data) 
-    {
-
-        var sql =
-         @"
-         UPDATE tickets 
-         SET ticket_id = @TicketId, 
-         status = @Status
-         WHERE ticket_id = @TicketId
         ";
-
-        await conn.ExecuteAsync(sql);
+        await conn.ExecuteAsync(sql, new
+        {
+            Metadata = data.Metadata,
+            UserId = data.UserId,
+            EventOccurrenceId = data.EventOccurrenceId,
+            SeatId = data.SeatId,
+            TicketNumber = TicketNumberId,  // Pass the generated TicketNumber here
+          
+        });
+        return new CreateTicketResponse { TicketNumber = TicketNumberId };
     }
 
-    
+
+    // Update   
+   public async Task Update(UpdateTicketRequest data)
+{
+    var sql =
+    @"
+    UPDATE tickets 
+    SET status = @Status
+    WHERE ticket_id = @TicketId
+    ";
+
+    await conn.ExecuteAsync(sql, new { Status = data.Status, TicketId = data.TicketId });
+}
+
+
 }
 

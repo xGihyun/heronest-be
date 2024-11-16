@@ -40,7 +40,7 @@ public class UserResponse
 {
     
     [Column("user_id")]
-    public Guid UserId { get; set; } // data type (guid)
+    public Guid UserId { get; set; } 
 
     [Column("email")]
     public string Email { get; set; } = string.Empty;
@@ -101,8 +101,7 @@ public class UserRepository : IUserRepository
     }
 
    
-    // RegisterUser -> INSERT INTO user_details(user_id)  VALUES (@UserId)
-    // put a guid value in my UserId. 
+    
 
 
     

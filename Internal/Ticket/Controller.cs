@@ -35,7 +35,7 @@ public class TicketController
     // ticket response
     public async Task<ApiResponse> Create(HttpContext context)
     {
-        var data = await context.Request.ReadFromJsonAsync<CreateTicketResponse>();
+        var data = await context.Request.ReadFromJsonAsync<CreateTicketRequest>();
 
         if (data is null)
         {
