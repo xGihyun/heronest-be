@@ -21,6 +21,7 @@ public class VenueController
             {
                 Status = ApiResponseStatus.Fail,
                 StatusCode = StatusCodes.Status400BadRequest,
+                
             };
         }
 

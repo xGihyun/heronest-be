@@ -38,8 +38,9 @@ public class User
 
 public class UserResponse
 {
+    
     [Column("user_id")]
-    public Guid UserId { get; set; }
+    public Guid UserId { get; set; } 
 
     [Column("email")]
     public string Email { get; set; } = string.Empty;
@@ -72,6 +73,7 @@ public class UserRepository : IUserRepository
             WHERE user_id = (@UserId)
             ";
         var user = await conn.QuerySingleAsync<UserResponse>(sql, new { UserId = userId });
+        
 
         return user;
     }
@@ -97,4 +99,10 @@ public class UserRepository : IUserRepository
             }
         );
     }
+
+   
+    
+
+
+    
 }

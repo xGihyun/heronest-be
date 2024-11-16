@@ -3,11 +3,13 @@ using System.Text.Json.Serialization;
 namespace Heronest.Internal.Api;
 
 [JsonConverter(typeof(JsonStringEnumConverter))]
+
 public enum ApiResponseStatus
 {
     Success,
     Fail,
-    Error,
+    Error
+
 }
 
 public class ApiResponse
