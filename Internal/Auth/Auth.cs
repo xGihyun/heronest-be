@@ -1,4 +1,5 @@
 using Dapper;
+using Heronest.Internal.User;
 using Npgsql;
 
 namespace Heronest.Internal.Auth;
@@ -26,7 +27,11 @@ public class AuthRepository : IAuthRepository
             VALUES (@Email, @Password, @Role::role)
             ";
 
-        await this.conn.ExecuteAsync(   
+        var userRepo = new UserRepository(conn);
+
+        await userRepo.CreateDetails(data);
+
+        await this.conn.ExecuteAsync(
             sql,
             new
             {

@@ -66,8 +66,7 @@ public class UserController
         {
             Status = ApiResponseStatus.Success,
             StatusCode = StatusCodes.Status201Created,
+            Message = "Successfully created user details.",
         };
     }
 }
-
-

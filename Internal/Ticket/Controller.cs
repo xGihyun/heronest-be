@@ -11,28 +11,6 @@ public class TicketController
         this.repository = ticketRepository;
     }
 
-    // public async Task<ApiResponse> CreateRequest(HttpContext context)
-    // {
-    //     var data = await context.Request.ReadFromJsonAsync<CreateTicketRequest>();
-
-    //     if (data is null)
-    //     {
-    //         return new ApiResponse
-    //         {
-    //             Status = ApiResponseStatus.Fail,
-    //             StatusCode = StatusCodes.Status400BadRequest,
-    //         };
-    //     }
-    //     await this.repository.Create(data);
-    //     return new ApiResponse
-    //     {
-    //         Status = ApiResponseStatus.Success,
-    //         StatusCode = StatusCodes.Status201Created,
-    //         Message = "Created Successfully",
-    //     };
-    // }
-
-    // ticket response
     public async Task<ApiResponse> Create(HttpContext context)
     {
         var data = await context.Request.ReadFromJsonAsync<CreateTicketRequest>();
@@ -45,7 +23,9 @@ public class TicketController
                 StatusCode = StatusCodes.Status400BadRequest,
             };
         }
+
         await this.repository.Create(data);
+
         return new ApiResponse
         {
             Status = ApiResponseStatus.Success,
@@ -54,9 +34,20 @@ public class TicketController
         };
     }
 
-    // Update: 
-    public async Task<ApiResponse> UpdateTicket(HttpContext context)
+    public async Task<ApiResponse> Update(HttpContext context)
     {
+        Guid ticketId;
+
+        if (!Guid.TryParse(context.GetRouteValue("ticketId")?.ToString(), out ticketId))
+        {
+            return new ApiResponse
+            {
+                Status = ApiResponseStatus.Fail,
+                StatusCode = StatusCodes.Status400BadRequest,
+                Message = "Invalid ticket ID.",
+            };
+        }
+
         var data = await context.Request.ReadFromJsonAsync<UpdateTicketRequest>();
 
         if (data is null)
@@ -65,15 +56,27 @@ public class TicketController
             {
                 Status = ApiResponseStatus.Fail,
                 StatusCode = StatusCodes.Status400BadRequest,
+                Message = "Invalid JSON request."
             };
         }
+
+        if (data.TicketId != ticketId)
+        {
+            return new ApiResponse
+            {
+                Status = ApiResponseStatus.Fail,
+                StatusCode = StatusCodes.Status400BadRequest,
+                Message = "Ticket ID does not match.",
+            };
+        }
+
         await this.repository.Update(data);
+
         return new ApiResponse
         {
             Status = ApiResponseStatus.Success,
             StatusCode = StatusCodes.Status201Created,
-            Message = "Created Successfully",
+            Message = "Successfully updated.",
         };
     }
 }
-

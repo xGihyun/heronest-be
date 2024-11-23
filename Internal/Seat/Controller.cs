@@ -5,14 +5,13 @@ namespace Heronest.Internal.Seat;
 public class SeatController
 {
     private readonly ISeatRepository repository;
-    
-    public SeatController(ISeatRepository seatRepository )
+
+    public SeatController(ISeatRepository repository)
     {
-        this.repository = seatRepository;
-        
+        this.repository = repository;
     }
 
-    public async Task<ApiResponse> CreateSeat(HttpContext context)
+    public async Task<ApiResponse> Create(HttpContext context)
     {
         var data = await context.Request.ReadFromJsonAsync<CreateSeatRequest>();
 
@@ -21,49 +20,50 @@ public class SeatController
             return new ApiResponse
             {
                 Status = ApiResponseStatus.Fail,
-                StatusCode = StatusCodes.Status400BadRequest
+                StatusCode = StatusCodes.Status400BadRequest,
+                Message = "Invalid JSON request.",
             };
         }
+
         await this.repository.Create(data);
+
         return new ApiResponse
         {
             Status = ApiResponseStatus.Success,
             StatusCode = StatusCodes.Status201Created,
-            Message = "Created Successfully"
+            Message = "Successfully created.",
         };
     }
 }
 
 public class SeatSectionController
 {
-    private readonly ISeatSectionRepository repository; 
+    private readonly ISeatSectionRepository repository;
 
-    public SeatSectionController(ISeatSectionRepository IseatSectionrepository)
+    public SeatSectionController(ISeatSectionRepository repository)
     {
-        this.repository = IseatSectionrepository;
+        this.repository = repository;
     }
 
-    public async Task<ApiResponse> CreateSeatSection(HttpContext context)
+    public async Task<ApiResponse> Create(HttpContext context)
     {
         var data = await context.Request.ReadFromJsonAsync<CreateSeatSectionRequest>();
 
-        if(data is null ) 
+        if (data is null)
         {
-            return new ApiResponse 
+            return new ApiResponse
             {
-                Status = ApiResponseStatus.Fail, 
-                StatusCode = StatusCodes.Status400BadRequest
+                Status = ApiResponseStatus.Fail,
+                StatusCode = StatusCodes.Status400BadRequest,
+                Message = "Invalid JSON request.",
             };
         }
 
         return new ApiResponse
         {
-            Status = ApiResponseStatus.Success, 
-            StatusCode = StatusCodes.Status201Created, 
-            Message = "Connection Successful"
+            Status = ApiResponseStatus.Success,
+            StatusCode = StatusCodes.Status201Created,
+            Message = "Successfully created.",
         };
-
     }
-
-
 }

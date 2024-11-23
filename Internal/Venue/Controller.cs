@@ -21,7 +21,7 @@ public class VenueController
             {
                 Status = ApiResponseStatus.Fail,
                 StatusCode = StatusCodes.Status400BadRequest,
-                
+                Message = "Invalid JSON request.",
             };
         }
 
@@ -31,6 +31,7 @@ public class VenueController
         {
             Status = ApiResponseStatus.Success,
             StatusCode = StatusCodes.Status201Created,
+            Message = "Successfully created venue.",
         };
     }
 }

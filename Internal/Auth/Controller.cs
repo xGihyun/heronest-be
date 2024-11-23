@@ -21,6 +21,7 @@ public class AuthController
             {
                 Status = ApiResponseStatus.Fail,
                 StatusCode = StatusCodes.Status400BadRequest,
+                Message = "Invalid JSON request.",
             };
         }
 
@@ -30,6 +31,7 @@ public class AuthController
         {
             Status = ApiResponseStatus.Success,
             StatusCode = StatusCodes.Status201Created,
+            Message = "Successfully registered.",
         };
     }
 
@@ -43,24 +45,26 @@ public class AuthController
             {
                 Status = ApiResponseStatus.Fail,
                 StatusCode = StatusCodes.Status400BadRequest,
+                Message = "Invalid JSON request.",
             };
         }
 
         await this.repository.Login(data);
 
-        var cookieOptions = new CookieOptions
-        {
-            Path = "/",
-            Secure = true,
-            SameSite = SameSiteMode.None,
-        };
-
-        context.Response.Cookies.Append("session", "I am a session!", cookieOptions);
+        /*var cookieOptions = new CookieOptions*/
+        /*{*/
+        /*    Path = "/",*/
+        /*    Secure = true,*/
+        /*    SameSite = SameSiteMode.None,*/
+        /*};*/
+        /**/
+        /*context.Response.Cookies.Append("session", "I am a session!", cookieOptions);*/
 
         return new ApiResponse
         {
             Status = ApiResponseStatus.Success,
             StatusCode = StatusCodes.Status200OK,
+            Message = "Successfully logged in.",
         };
     }
 }
