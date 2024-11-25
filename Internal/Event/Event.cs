@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations.Schema;
 using Dapper;
 using Npgsql;
+using Heronest.Internal.Database;
 
 namespace Heronest.Internal.Event;
 
@@ -22,8 +23,22 @@ public class CreateEventRequest
     public Guid VenueId { get; set; }
 }
 
+[SqlMapper(CaseType.SnakeCase)]
+public class GetEventResponse 
+{
+    [Column("event_id")]
+    public Guid EventId { get; set; }
+
+    [Column("name")]
+    public String Name { get; set; } = String.Empty;
+
+    [Column("description")]
+    public String? Description { get; set; }
+}
+
 public interface IEventRepository
 {
+    Task<GetEventResponse[]> Get(int page, int limit);
     Task Create(CreateEventRequest data);
 }
 
@@ -36,15 +51,30 @@ public class EventRepository : IEventRepository
         this.conn = conn;
     }
 
+    public async Task<GetEventResponse[]> Get(int page, int limit)
+    {
+        var sql =
+            @"
+            SELECT event_id, name, description
+            FROM events
+            OFFSET @Offset
+            LIMIT @Limit
+            ";
+
+        var events = await this.conn.QueryAsync<GetEventResponse>(
+            sql,
+            new { Offset = (page - 1) * limit, Limit = limit }
+        );
+
+        return events.ToArray();
+    }
+
     public async Task Create(CreateEventRequest data)
     {
         var sql =
             @"
             INSERT INTO events(name, description)
             VALUES(@Name, @Description)
-
-            INSERT INTO event_occurrences(start_at, end_at, venue_id)
-            VALUES(@StartAt, @EndAt, @VenueId)
             ";
 
         await conn.ExecuteAsync(sql, data);

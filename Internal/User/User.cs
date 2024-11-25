@@ -2,6 +2,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
 using Dapper;
 using Npgsql;
+using Heronest.Internal.Database;
 
 namespace Heronest.Internal.User;
 
@@ -36,11 +37,11 @@ public class User
     public Role Role { get; set; }
 }
 
-public class UserResponse
+[SqlMapper(CaseType.SnakeCase)]
+public class GetUserResponse
 {
-    
     [Column("user_id")]
-    public Guid UserId { get; set; } 
+    public Guid UserId { get; set; }
 
     [Column("email")]
     public string Email { get; set; } = string.Empty;
@@ -51,7 +52,7 @@ public class UserResponse
 
 public interface IUserRepository
 {
-    Task<UserResponse> GetById(Guid userId);
+    Task<GetUserResponse> GetById(Guid userId);
     Task CreateDetails(UserDetailRequest data);
 }
 
@@ -64,7 +65,7 @@ public class UserRepository : IUserRepository
         this.conn = conn;
     }
 
-    public async Task<UserResponse> GetById(Guid userId)
+    public async Task<GetUserResponse> GetById(Guid userId)
     {
         var sql =
             @"
@@ -72,8 +73,7 @@ public class UserRepository : IUserRepository
             FROM users
             WHERE user_id = (@UserId)
             ";
-        var user = await conn.QuerySingleAsync<UserResponse>(sql, new { UserId = userId });
-        
+        var user = await conn.QuerySingleAsync<GetUserResponse>(sql, new { UserId = userId });
 
         return user;
     }
@@ -99,10 +99,4 @@ public class UserRepository : IUserRepository
             }
         );
     }
-
-   
-    
-
-
-    
 }

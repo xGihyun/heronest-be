@@ -3,13 +3,11 @@ using System.Text.Json.Serialization;
 namespace Heronest.Internal.Api;
 
 [JsonConverter(typeof(JsonStringEnumConverter))]
-
 public enum ApiResponseStatus
 {
     Success,
     Fail,
-    Error
-
+    Error,
 }
 
 public class ApiResponse
@@ -35,6 +33,8 @@ public class ApiHandler
             {
                 var response = await handler(context);
 
+                Console.WriteLine(response.Message);
+
                 return Results.Json(response, statusCode: response.StatusCode);
             }
             catch (Exception ex)
@@ -45,6 +45,8 @@ public class ApiHandler
                     StatusCode = StatusCodes.Status500InternalServerError,
                     Message = ex.Message,
                 };
+
+                Console.WriteLine(response.Message);
 
                 return Results.Json(response, statusCode: response.StatusCode);
             }

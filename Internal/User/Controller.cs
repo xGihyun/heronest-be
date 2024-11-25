@@ -25,7 +25,7 @@ public class UserController
             };
         }
 
-        UserResponse user = await this.repository.GetById(userId);
+        GetUserResponse user = await this.repository.GetById(userId);
 
         return new ApiResponse
         {

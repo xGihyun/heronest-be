@@ -1,10 +1,11 @@
 using System.ComponentModel.DataAnnotations.Schema;
-using Npgsql;
 using Dapper;
+using Npgsql;
+using Heronest.Internal.Database;
 
 namespace Heronest.Internal.Venue;
 
-public class VenueRequest
+public class CreateVenueRequest
 {
     [Column("name")]
     public string Name { get; set; } = string.Empty;
@@ -22,9 +23,17 @@ public class VenueRequest
     public string? ImageUrl { get; set; }
 }
 
+[SqlMapper()]
+public class GetVenueResponse : CreateVenueRequest
+{
+    [Column("venue_id")]
+    public Guid VenueId { get; set; }
+}
+
 public interface IVenueRepository
 {
-    Task Create(VenueRequest data);
+    Task Create(CreateVenueRequest data);
+    Task<GetVenueResponse[]> Get(int page, int limit);
 }
 
 public class VenueRepository : IVenueRepository
@@ -36,7 +45,25 @@ public class VenueRepository : IVenueRepository
         this.conn = conn;
     }
 
-    public async Task Create(VenueRequest data)
+    public async Task<GetVenueResponse[]> Get(int page, int limit)
+    {
+        var sql =
+            @"
+            SELECT venue_id, name, description, capacity, location, image_url
+            FROM venues
+            OFFSET @Offset
+            LIMIT @Limit
+            ";
+
+        var venues = await this.conn.QueryAsync<GetVenueResponse>(
+            sql,
+            new { Offset = (page - 1) * limit, Limit = limit }
+        );
+
+        return venues.ToArray();
+    }
+
+    public async Task Create(CreateVenueRequest data)
     {
         var sql =
             @"
@@ -44,8 +71,6 @@ public class VenueRepository : IVenueRepository
             VALUES (@Name, @Description, @Capacity, @Location, @ImageUrl)
             ";
 
-        await this.conn.ExecuteAsync(sql);
+        await this.conn.ExecuteAsync(sql, data);
     }
 }
-
-

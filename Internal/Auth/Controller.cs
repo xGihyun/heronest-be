@@ -1,4 +1,5 @@
 using Heronest.Internal.Api;
+using Heronest.Internal.User;
 
 namespace Heronest.Internal.Auth;
 
@@ -49,22 +50,14 @@ public class AuthController
             };
         }
 
-        await this.repository.Login(data);
-
-        /*var cookieOptions = new CookieOptions*/
-        /*{*/
-        /*    Path = "/",*/
-        /*    Secure = true,*/
-        /*    SameSite = SameSiteMode.None,*/
-        /*};*/
-        /**/
-        /*context.Response.Cookies.Append("session", "I am a session!", cookieOptions);*/
+        GetUserResponse user = await this.repository.Login(data);
 
         return new ApiResponse
         {
             Status = ApiResponseStatus.Success,
             StatusCode = StatusCodes.Status200OK,
             Message = "Successfully logged in.",
+            Data = user,
         };
     }
 }

@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Dapper;
@@ -31,12 +32,8 @@ public class Program
 
         var builder = WebApplication.CreateBuilder(args);
 
-        // NOTE:
-        // Map the types of classes that are used to fetch from the database
-        SqlMapper.SetTypeMap(
-            typeof(UserResponse),
-            new SnakeCaseColumnNameMapper(typeof(UserResponse))
-        );
+
+        SqlMapperConfig.ConfigureMappers(Assembly.GetExecutingAssembly());
 
         // Add services to the container.
         builder.Services.AddAuthorization();
@@ -99,6 +96,9 @@ public class Program
 
         var venueController = new VenueController(new VenueRepository(conn));
 
+        app.MapGet("/api/venues", ApiHandler.Handle(venueController.Get))
+            .WithName("GetVenues")
+            .WithOpenApi();
         app.MapPost("/api/venues", ApiHandler.Handle(venueController.Create))
             .WithName("CreateVenue")
             .WithOpenApi();
@@ -126,6 +126,9 @@ public class Program
 
         var eventController = new EventController(new EventRepository(conn));
 
+        app.MapGet("/api/events", ApiHandler.Handle(eventController.Get))
+            .WithName("GetEvents")
+            .WithOpenApi();
         app.MapPost("/api/events", ApiHandler.Handle(eventController.Create))
             .WithName("CreateEvent")
             .WithOpenApi();
