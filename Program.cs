@@ -1,7 +1,6 @@
 using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Dapper;
 using Heronest.Internal.Api;
 using Heronest.Internal.Auth;
 using Heronest.Internal.Database;
@@ -26,6 +25,7 @@ public class Program
 
         dataSourceBuilder.MapEnum<Role>();
         dataSourceBuilder.MapEnum<Sex>();
+        dataSourceBuilder.MapEnum<SeatStatus>();
 
         await using var dataSource = dataSourceBuilder.Build();
         var conn = await dataSource.OpenConnectionAsync();
@@ -114,6 +114,9 @@ public class Program
 
         var seatController = new SeatController(new SeatRepository(conn));
 
+        app.MapGet("/api/seats", ApiHandler.Handle(seatController.Get))
+            .WithName("GetSeats")
+            .WithOpenApi();
         app.MapPost("/api/seats", ApiHandler.Handle(seatController.Create))
             .WithName("CreateSeat")
             .WithOpenApi();

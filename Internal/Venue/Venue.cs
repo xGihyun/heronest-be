@@ -23,7 +23,7 @@ public class CreateVenueRequest
     public string? ImageUrl { get; set; }
 }
 
-[SqlMapper()]
+[SqlMapper(CaseType.SnakeCase)]
 public class GetVenueResponse : CreateVenueRequest
 {
     [Column("venue_id")]

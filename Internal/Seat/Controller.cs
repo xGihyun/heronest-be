@@ -11,9 +11,37 @@ public class SeatController
         this.repository = repository;
     }
 
+    public async Task<ApiResponse> Get(HttpContext context)
+    {
+        Guid venueId;
+
+        if (
+            !context.Request.Query.TryGetValue("venueId", out var data)
+            || !Guid.TryParse(data.ToString(), out venueId)
+        )
+        {
+            return new ApiResponse
+            {
+                Status = ApiResponseStatus.Fail,
+                StatusCode = StatusCodes.Status400BadRequest,
+                Message = "Invalid or missing venue ID.",
+            };
+        }
+
+        var seats = await this.repository.Get(venueId);
+
+        return new ApiResponse
+        {
+            Status = ApiResponseStatus.Success,
+            StatusCode = StatusCodes.Status200OK,
+            Message = "Successfully fetched seats.",
+            Data = seats,
+        };
+    }
+
     public async Task<ApiResponse> Create(HttpContext context)
     {
-        var data = await context.Request.ReadFromJsonAsync<CreateSeatRequest>();
+        var data = await context.Request.ReadFromJsonAsync<CreateSeatRequest[]>();
 
         if (data is null)
         {
