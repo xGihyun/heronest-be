@@ -1,7 +1,8 @@
 using System.ComponentModel.DataAnnotations.Schema;
 using Dapper;
-using Npgsql;
+using Heronest.Internal.Api;
 using Heronest.Internal.Database;
+using Npgsql;
 
 namespace Heronest.Internal.Venue;
 
@@ -33,7 +34,7 @@ public class GetVenueResponse : CreateVenueRequest
 public interface IVenueRepository
 {
     Task Create(CreateVenueRequest data);
-    Task<GetVenueResponse[]> Get(int page, int limit);
+    Task<GetVenueResponse[]> Get(PaginationResult pagination);
 }
 
 public class VenueRepository : IVenueRepository
@@ -45,20 +46,24 @@ public class VenueRepository : IVenueRepository
         this.conn = conn;
     }
 
-    public async Task<GetVenueResponse[]> Get(int page, int limit)
+    public async Task<GetVenueResponse[]> Get(PaginationResult pagination)
     {
         var sql =
             @"
             SELECT venue_id, name, description, capacity, location, image_url
             FROM venues
-            OFFSET @Offset
-            LIMIT @Limit
             ";
 
-        var venues = await this.conn.QueryAsync<GetVenueResponse>(
-            sql,
-            new { Offset = (page - 1) * limit, Limit = limit }
-        );
+        var parameters = new DynamicParameters();
+
+        if (pagination.Page.HasValue && pagination.Limit.HasValue)
+        {
+            sql += " OFFSET @Offset LIMIT @Limit";
+            parameters.Add("Offset", (pagination.Page.Value - 1) * pagination.Limit.Value);
+            parameters.Add("Limit", pagination.Limit.Value);
+        }
+
+        var venues = await this.conn.QueryAsync<GetVenueResponse>(sql, parameters);
 
         return venues.ToArray();
     }

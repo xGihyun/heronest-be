@@ -13,51 +13,17 @@ public class EventController
 
     public async Task<ApiResponse> Get(HttpContext context)
     {
-        string pageQuery = "1";
-        string limitQuery = "10";
+        var pagination = new Pagination(context);
+        var paginationResult = pagination.Parse();
 
-        if (context.Request.Query.TryGetValue("page", out var pageValue))
-        {
-            pageQuery = pageValue.ToString();
-        }
-
-        if (context.Request.Query.TryGetValue("limit", out var limitValue))
-        {
-            limitQuery = limitValue.ToString();
-        }
-
-        int page;
-
-        if (!Int32.TryParse(pageQuery, out page))
-        {
-            return new ApiResponse
-            {
-                Status = ApiResponseStatus.Fail,
-                StatusCode = StatusCodes.Status400BadRequest,
-                Message = "Invalid page query.",
-            };
-        }
-
-        int limit;
-
-        if (!Int32.TryParse(limitQuery, out limit))
-        {
-            return new ApiResponse
-            {
-                Status = ApiResponseStatus.Fail,
-                StatusCode = StatusCodes.Status400BadRequest,
-                Message = "Invalid limit query.",
-            };
-        }
-
-        var events = await this.repository.Get(page, limit);
+        var events = await this.repository.Get(paginationResult);
 
         return new ApiResponse
         {
             Status = ApiResponseStatus.Success,
             StatusCode = StatusCodes.Status200OK,
             Message = "Successfully fetched events.",
-            Data = events
+            Data = events,
         };
     }
 
@@ -85,4 +51,3 @@ public class EventController
         };
     }
 }
-

@@ -136,6 +136,14 @@ public class Program
             .WithName("CreateEvent")
             .WithOpenApi();
 
+        // TODO: Should probably be a different controller?
+        /*app.MapGet("/api/event-occurrences", ApiHandler.Handle(eventController.GetOccurences))*/
+        /*    .WithName("GetEventOccurrences")*/
+        /*    .WithOpenApi();*/
+        /*app.MapPost("/api/event-occurrences", ApiHandler.Handle(eventController.CreateOccurence))*/
+        /*    .WithName("CreateEventOccurrence")*/
+        /*    .WithOpenApi();*/
+
         app.Run();
     }
 }
