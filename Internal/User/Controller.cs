@@ -11,6 +11,22 @@ public class UserController
         this.repository = userRepository;
     }
 
+    public async Task<ApiResponse> Get(HttpContext context)
+    {
+        var pagination = new Pagination(context);
+        var paginationResult = pagination.Parse();
+
+        var users = await this.repository.Get(paginationResult);
+
+        return new ApiResponse
+        {
+            Status = ApiResponseStatus.Success,
+            StatusCode = StatusCodes.Status200OK,
+            Message = "Successfully fetched users.",
+            Data = users,
+        };
+    }
+
     public async Task<ApiResponse> GetById(HttpContext context)
     {
         Guid userId;
@@ -32,6 +48,30 @@ public class UserController
             Status = ApiResponseStatus.Success,
             StatusCode = StatusCodes.Status200OK,
             Data = user,
+        };
+    }
+
+    public async Task<ApiResponse> Create(HttpContext context)
+    {
+        var data = await context.Request.ReadFromJsonAsync<CreateUserRequest>();
+
+        if (data is null)
+        {
+            return new ApiResponse
+            {
+                Status = ApiResponseStatus.Fail,
+                StatusCode = StatusCodes.Status400BadRequest,
+                Message = "Invalid JSON request.",
+            };
+        }
+
+        await this.repository.Create(data);
+
+        return new ApiResponse
+        {
+            Status = ApiResponseStatus.Success,
+            StatusCode = StatusCodes.Status201Created,
+            Message = "Successfully created user.",
         };
     }
 

@@ -50,4 +50,51 @@ public class EventController
             Message = "Successfully created event.",
         };
     }
+
+    public async Task<ApiResponse> Update(HttpContext context)
+    {
+
+        Guid eventId;
+
+        if (!Guid.TryParse(context.GetRouteValue("eventId")?.ToString(), out eventId))
+        {
+            return new ApiResponse
+            {
+                Status = ApiResponseStatus.Fail,
+                StatusCode = StatusCodes.Status400BadRequest,
+                Message = "Invalid event ID.",
+            };
+        }
+
+        var data = await context.Request.ReadFromJsonAsync<UpdateEventRequest>();
+
+        if (data is null)
+        {
+            return new ApiResponse
+            {
+                Status = ApiResponseStatus.Fail,
+                StatusCode = StatusCodes.Status400BadRequest,
+                Message = "Invalid JSON request.",
+            };
+        }
+
+        if (data.EventId != eventId)
+        {
+            return new ApiResponse
+            {
+                Status = ApiResponseStatus.Fail,
+                StatusCode = StatusCodes.Status400BadRequest,
+                Message = "Event IDs don't match.",
+            };
+        }
+
+        await this.repository.Update(data);
+
+        return new ApiResponse
+        {
+            Status = ApiResponseStatus.Success,
+            StatusCode = StatusCodes.Status200OK,
+            Message = "Successfully updated event.",
+        };
+    }
 }

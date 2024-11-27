@@ -87,8 +87,18 @@ public class Program
 
         var userController = new UserController(new UserRepository(conn));
 
+        app.MapGet("/api/users", ApiHandler.Handle(userController.Get))
+            .WithName("GetUsers")
+            .WithOpenApi();
         app.MapGet("/api/users/{userId}", ApiHandler.Handle(userController.GetById))
             .WithName("GetUser")
+            .WithOpenApi();
+        // TODO: Update user
+        /*app.MapPatch("/api/users/{userId}", ApiHandler.Handle(userController.Update))*/
+        /*    .WithName("UpdateUser")*/
+        /*    .WithOpenApi();*/
+        app.MapPost("/api/users", ApiHandler.Handle(userController.Create))
+            .WithName("CreateUser")
             .WithOpenApi();
         app.MapPost("/api/users/{userId}/details", ApiHandler.Handle(userController.CreateDetails))
             .WithName("CreateUserDetail")
@@ -101,6 +111,9 @@ public class Program
             .WithOpenApi();
         app.MapPost("/api/venues", ApiHandler.Handle(venueController.Create))
             .WithName("CreateVenue")
+            .WithOpenApi();
+        app.MapPatch("/api/venues/{venueId}", ApiHandler.Handle(venueController.Update))
+            .WithName("UpdateVenue")
             .WithOpenApi();
 
         var ticketController = new TicketController(new TicketRepository(conn));
@@ -135,14 +148,9 @@ public class Program
         app.MapPost("/api/events", ApiHandler.Handle(eventController.Create))
             .WithName("CreateEvent")
             .WithOpenApi();
-
-        // TODO: Should probably be a different controller?
-        /*app.MapGet("/api/event-occurrences", ApiHandler.Handle(eventController.GetOccurences))*/
-        /*    .WithName("GetEventOccurrences")*/
-        /*    .WithOpenApi();*/
-        /*app.MapPost("/api/event-occurrences", ApiHandler.Handle(eventController.CreateOccurence))*/
-        /*    .WithName("CreateEventOccurrence")*/
-        /*    .WithOpenApi();*/
+        app.MapPatch("/api/events/{eventId}", ApiHandler.Handle(eventController.Update))
+            .WithName("UpdateEvent")
+            .WithOpenApi();
 
         app.Run();
     }

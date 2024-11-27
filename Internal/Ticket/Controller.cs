@@ -66,7 +66,7 @@ public class TicketController
             {
                 Status = ApiResponseStatus.Fail,
                 StatusCode = StatusCodes.Status400BadRequest,
-                Message = "Ticket ID does not match.",
+                Message = "Ticket IDs don't match.",
             };
         }
 

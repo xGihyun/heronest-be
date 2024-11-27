@@ -8,6 +8,9 @@ namespace Heronest.Internal.Venue;
 
 public class CreateVenueRequest
 {
+    [Column("venue_id")]
+    public Guid VenueId { get; set; }
+
     [Column("name")]
     public string Name { get; set; } = string.Empty;
 
@@ -24,16 +27,15 @@ public class CreateVenueRequest
     public string? ImageUrl { get; set; }
 }
 
+public class UpdateVenueRequest : CreateVenueRequest;
+
 [SqlMapper(CaseType.SnakeCase)]
-public class GetVenueResponse : CreateVenueRequest
-{
-    [Column("venue_id")]
-    public Guid VenueId { get; set; }
-}
+public class GetVenueResponse : CreateVenueRequest;
 
 public interface IVenueRepository
 {
     Task Create(CreateVenueRequest data);
+    Task Update(UpdateVenueRequest data);
     Task<GetVenueResponse[]> Get(PaginationResult pagination);
 }
 
@@ -74,6 +76,22 @@ public class VenueRepository : IVenueRepository
             @"
             INSERT INTO venues (name, description, capacity, location, image_url)
             VALUES (@Name, @Description, @Capacity, @Location, @ImageUrl)
+            ";
+
+        await this.conn.ExecuteAsync(sql, data);
+    }
+
+    public async Task Update(UpdateVenueRequest data)
+    {
+        var sql =
+            @"
+            UPDATE venues 
+            SET name = @Name, 
+                description = @Description, 
+                capacity = @Capacity, 
+                location = @Location, 
+                image_url = @ImageUrl
+            WHERE venue_id = @VenueId
             ";
 
         await this.conn.ExecuteAsync(sql, data);
