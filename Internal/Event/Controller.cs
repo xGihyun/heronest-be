@@ -13,10 +13,29 @@ public class EventController
 
     public async Task<ApiResponse> Get(HttpContext context)
     {
+        Guid? venueId = null;
+
+        if (context.Request.Query.TryGetValue("venueId", out var venueIdValue))
+        {
+            if (!Guid.TryParse(venueIdValue.ToString(), out var parsedVenueId))
+            {
+                throw new ArgumentException("Invalid venue ID.");
+            }
+
+            venueId = parsedVenueId;
+        }
+
         var pagination = new Pagination(context);
         var paginationResult = pagination.Parse();
 
-        var events = await this.repository.Get(paginationResult);
+        var events = await this.repository.Get(
+            new GetEventFilter
+            {
+                Limit = paginationResult.Limit,
+                Page = paginationResult.Page,
+                VenueId = venueId,
+            }
+        );
 
         return new ApiResponse
         {
@@ -53,7 +72,6 @@ public class EventController
 
     public async Task<ApiResponse> Update(HttpContext context)
     {
-
         Guid eventId;
 
         if (!Guid.TryParse(context.GetRouteValue("eventId")?.ToString(), out eventId))

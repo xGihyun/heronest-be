@@ -48,6 +48,7 @@ public class UserController
             Status = ApiResponseStatus.Success,
             StatusCode = StatusCodes.Status200OK,
             Data = user,
+            Message = "Successfully fetched user."
         };
     }
 
@@ -72,6 +73,42 @@ public class UserController
             Status = ApiResponseStatus.Success,
             StatusCode = StatusCodes.Status201Created,
             Message = "Successfully created user.",
+        };
+    }
+
+    public async Task<ApiResponse> Update(HttpContext context)
+    {
+        Guid userId;
+
+        if (!Guid.TryParse(context.GetRouteValue("userId")?.ToString(), out userId))
+        {
+            return new ApiResponse
+            {
+                Status = ApiResponseStatus.Fail,
+                StatusCode = StatusCodes.Status400BadRequest,
+                Message = "Invalid user ID.",
+            };
+        }
+
+        var data = await context.Request.ReadFromJsonAsync<UpdateUserRequest>();
+
+        if (data is null)
+        {
+            return new ApiResponse
+            {
+                Status = ApiResponseStatus.Fail,
+                StatusCode = StatusCodes.Status400BadRequest,
+                Message = "Invalid JSON request.",
+            };
+        }
+
+        await this.repository.Update(data);
+
+        return new ApiResponse
+        {
+            Status = ApiResponseStatus.Success,
+            StatusCode = StatusCodes.Status200OK,
+            Message = "Successfully updated user.",
         };
     }
 

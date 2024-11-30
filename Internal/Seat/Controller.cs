@@ -15,16 +15,13 @@ public class SeatController
     {
         Guid venueId;
 
-        if (
-            !context.Request.Query.TryGetValue("venueId", out var data)
-            || !Guid.TryParse(data.ToString(), out venueId)
-        )
+        if (!Guid.TryParse(context.GetRouteValue("venueId")?.ToString(), out venueId))
         {
             return new ApiResponse
             {
                 Status = ApiResponseStatus.Fail,
                 StatusCode = StatusCodes.Status400BadRequest,
-                Message = "Invalid or missing venue ID.",
+                Message = "Invalid venue ID.",
             };
         }
 

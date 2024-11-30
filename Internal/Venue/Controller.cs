@@ -35,10 +35,8 @@ public class VenueController
         };
     }
 
-
     public async Task<ApiResponse> Update(HttpContext context)
     {
-
         Guid venueId;
 
         if (!Guid.TryParse(context.GetRouteValue("venueId")?.ToString(), out venueId))
@@ -95,7 +93,7 @@ public class VenueController
             Status = ApiResponseStatus.Success,
             StatusCode = StatusCodes.Status200OK,
             Message = "Successfully fetched venues.",
-            Data = venues
+            Data = venues,
         };
     }
 }

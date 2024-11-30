@@ -64,9 +64,14 @@ public class GetEventResponse
     public GetVenueResponse Venue { get; set; } = new GetVenueResponse();
 }
 
+public class GetEventFilter : PaginationResult
+{
+    public Guid? VenueId { get; set; }
+}
+
 public interface IEventRepository
 {
-    Task<GetEventResponse[]> Get(PaginationResult pagination);
+    Task<GetEventResponse[]> Get(GetEventFilter pagination);
     Task Create(CreateEventRequest data);
     Task Update(UpdateEventRequest data);
 }
@@ -80,7 +85,7 @@ public class EventRepository : IEventRepository
         this.conn = conn;
     }
 
-    public async Task<GetEventResponse[]> Get(PaginationResult pagination)
+    public async Task<GetEventResponse[]> Get(GetEventFilter filter)
     {
         var sql =
             @"
@@ -104,11 +109,17 @@ public class EventRepository : IEventRepository
 
         var parameters = new DynamicParameters();
 
-        if (pagination.Page.HasValue && pagination.Limit.HasValue)
+        if (filter.VenueId.HasValue)
+        {
+            sql += " WHERE venues.venue_id = @VenueId";
+            parameters.Add("VenueId", filter.VenueId);
+        }
+
+        if (filter.Page.HasValue && filter.Limit.HasValue)
         {
             sql += " OFFSET @Offset LIMIT @Limit";
-            parameters.Add("Offset", (pagination.Page.Value - 1) * pagination.Limit.Value);
-            parameters.Add("Limit", pagination.Limit.Value);
+            parameters.Add("Offset", (filter.Page.Value - 1) * filter.Limit.Value);
+            parameters.Add("Limit", filter.Limit.Value);
         }
 
         var eventsResult = await this.conn.QueryAsync<GetEventResponse>(sql, parameters);

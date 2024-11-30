@@ -54,12 +54,16 @@ public class CreateUserRequest : GetUserResponse
     public string Password { get; set; } = "password";
 }
 
+public class UpdateUserRequest : CreateUserRequest;
+
 public interface IUserRepository
 {
     Task<GetUserResponse[]> Get(PaginationResult pagination);
     Task<GetUserResponse> GetById(Guid userId);
     Task Create(CreateUserRequest data);
+    Task Update(UpdateUserRequest data);
     Task CreateDetails(UserDetailRequest data);
+    Task UpdateDetails(UserDetailRequest data);
 }
 
 public class UserRepository : IUserRepository
@@ -117,7 +121,7 @@ public class UserRepository : IUserRepository
                 user_details.sex
             FROM users
             JOIN user_details ON user_details.user_id = users.user_id
-            WHERE user_id = (@UserId)
+            WHERE users.user_id = (@UserId)
             ";
         var user = await conn.QuerySingleAsync<GetUserResponse>(sql, new { UserId = userId });
 
@@ -146,15 +150,35 @@ public class UserRepository : IUserRepository
         );
     }
 
+    public async Task UpdateDetails(UserDetailRequest data)
+    {
+        var sql =
+            @"
+            UPDATE user_details 
+            SET first_name = @FirstName, 
+                middle_name = @MiddleName, 
+                last_name = @LastName, 
+                birth_date = @BirthDate, 
+                sex = @Sex::sex
+            WHERE user_id = @UserId
+            ";
+
+        await this.conn.ExecuteAsync(
+            sql,
+            new
+            {
+                FirstName = data.FirstName,
+                MiddleName = data.MiddleName,
+                LastName = data.LastName,
+                BirthDate = data.BirthDate,
+                Sex = data.Sex.ToString().ToLower(),
+                UserId = data.UserId,
+            }
+        );
+    }
+
     public async Task Create(CreateUserRequest data)
     {
-        NpgsqlTransaction transaction = await this.conn.BeginTransactionAsync();
-
-        if (transaction.Connection == null)
-        {
-            throw new Exception("Transaction connection is null.");
-        }
-
         var sql =
             @"
             INSERT INTO users (email, password, role)
@@ -175,6 +199,30 @@ public class UserRepository : IUserRepository
         data.UserId = userId;
 
         await this.CreateDetails(data);
-        await transaction.CommitAsync();
+    }
+
+    public async Task Update(UpdateUserRequest data)
+    {
+        var sql =
+            @"
+            UPDATE users 
+            SET email = @Email, 
+                password = @Password, 
+                role = @Role::role
+            WHERE user_id = @UserId
+            ";
+
+        await this.conn.QueryAsync<Guid>(
+            sql,
+            new
+            {
+                Email = data.Email,
+                Password = data.Password,
+                Role = data.Role.ToString().ToLower(),
+                UserId = data.UserId
+            }
+        );
+
+        await this.UpdateDetails(data);
     }
 }

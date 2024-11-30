@@ -17,13 +17,10 @@ public enum TicketStatus
 public class CreateTicketRequest
 {
     [Column("metadata")]
-    public object? Metadata { get; set; }
+    public dynamic? Metadata { get; set; }
 
     [Column("user_id")]
     public Guid UserId { get; set; }
-
-    [Column("event_occurrence_id")]
-    public Guid EventOccurrenceId { get; set; }
 
     [Column("seat_id")]
     public Guid SeatId { get; set; }
@@ -32,7 +29,26 @@ public class CreateTicketRequest
 public class CreateTicketResponse
 {
     [Column("ticket_number")]
-    public String TicketNumber { get; set; } = String.Empty;
+    public string TicketNumber { get; set; } = string.Empty;
+}
+
+public class GetTicketResponse {
+    [Column("ticket_id")]
+    public Guid TicketId { get; set; }
+
+    [Column("ticket_number")]
+    public string TicketNumber { get; set; } = string.Empty;
+
+    [Column("status")]
+    public TicketStatus Status { get; set; }
+
+    [Column("metadata")]
+    public dynamic? Metadata { get; set; }
+
+    // TODO:
+    // User data
+    // Seat data
+    // Event data
 }
 
 public class UpdateTicketRequest

@@ -93,10 +93,9 @@ public class Program
         app.MapGet("/api/users/{userId}", ApiHandler.Handle(userController.GetById))
             .WithName("GetUser")
             .WithOpenApi();
-        // TODO: Update user
-        /*app.MapPatch("/api/users/{userId}", ApiHandler.Handle(userController.Update))*/
-        /*    .WithName("UpdateUser")*/
-        /*    .WithOpenApi();*/
+        app.MapPatch("/api/users/{userId}", ApiHandler.Handle(userController.Update))
+            .WithName("UpdateUser")
+            .WithOpenApi();
         app.MapPost("/api/users", ApiHandler.Handle(userController.Create))
             .WithName("CreateUser")
             .WithOpenApi();
@@ -127,11 +126,11 @@ public class Program
 
         var seatController = new SeatController(new SeatRepository(conn));
 
-        app.MapGet("/api/seats", ApiHandler.Handle(seatController.Get))
-            .WithName("GetSeats")
+        app.MapGet("/api/venues/{venueId}/seats", ApiHandler.Handle(seatController.Get))
+            .WithName("GetVenueSeats")
             .WithOpenApi();
-        app.MapPost("/api/seats", ApiHandler.Handle(seatController.Create))
-            .WithName("CreateSeat")
+        app.MapPost("/api/venues/{venueId}/seats", ApiHandler.Handle(seatController.Create))
+            .WithName("CreateVenueSeats")
             .WithOpenApi();
 
         var seatSectionController = new SeatSectionController(new SeatSectionRepository(conn));
