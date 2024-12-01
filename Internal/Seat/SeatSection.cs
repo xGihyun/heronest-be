@@ -21,11 +21,11 @@ public interface ISeatSectionRepository
 
 public class SeatSectionRepository : ISeatSectionRepository
 {
-    private NpgsqlConnection conn;
+    private NpgsqlDataSource dataSource;
 
-    public SeatSectionRepository(NpgsqlConnection conn)
+    public SeatSectionRepository(NpgsqlDataSource dataSource)
     {
-        this.conn = conn;
+        this.dataSource = dataSource;
     }
 
     public async Task Create(CreateSeatSectionRequest data)
@@ -36,6 +36,7 @@ public class SeatSectionRepository : ISeatSectionRepository
             VALUES(@Name, @Description)
             ";
 
+        await using var conn = await this.dataSource.OpenConnectionAsync();
         await conn.ExecuteAsync(sql, data);
     }
 }

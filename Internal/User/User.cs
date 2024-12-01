@@ -68,11 +68,11 @@ public interface IUserRepository
 
 public class UserRepository : IUserRepository
 {
-    private NpgsqlConnection conn;
+    private NpgsqlDataSource dataSource;
 
-    public UserRepository(NpgsqlConnection conn)
+    public UserRepository(NpgsqlDataSource dataSource)
     {
-        this.conn = conn;
+        this.dataSource = dataSource;
     }
 
     public async Task<GetUserResponse[]> Get(PaginationResult pagination)
@@ -101,7 +101,8 @@ public class UserRepository : IUserRepository
             parameters.Add("Limit", pagination.Limit.Value);
         }
 
-        var user = await this.conn.QueryAsync<GetUserResponse>(sql, parameters);
+        await using var conn = await this.dataSource.OpenConnectionAsync();
+        var user = await conn.QueryAsync<GetUserResponse>(sql, parameters);
 
         return user.ToArray();
     }
@@ -123,6 +124,8 @@ public class UserRepository : IUserRepository
             JOIN user_details ON user_details.user_id = users.user_id
             WHERE users.user_id = (@UserId)
             ";
+
+        await using var conn = await this.dataSource.OpenConnectionAsync();
         var user = await conn.QuerySingleAsync<GetUserResponse>(sql, new { UserId = userId });
 
         return user;
@@ -136,7 +139,8 @@ public class UserRepository : IUserRepository
             VALUES (@FirstName, @MiddleName, @LastName, @BirthDate, @Sex::sex, @UserId)
             ";
 
-        await this.conn.ExecuteAsync(
+        await using var conn = await this.dataSource.OpenConnectionAsync();
+        await conn.ExecuteAsync(
             sql,
             new
             {
@@ -163,7 +167,8 @@ public class UserRepository : IUserRepository
             WHERE user_id = @UserId
             ";
 
-        await this.conn.ExecuteAsync(
+        await using var conn = await this.dataSource.OpenConnectionAsync();
+        await conn.ExecuteAsync(
             sql,
             new
             {
@@ -186,7 +191,8 @@ public class UserRepository : IUserRepository
             RETURNING user_id
             ";
 
-        var userId = await this.conn.QuerySingleAsync<Guid>(
+        await using var conn = await this.dataSource.OpenConnectionAsync();
+        var userId = await conn.QuerySingleAsync<Guid>(
             sql,
             new
             {
@@ -212,14 +218,15 @@ public class UserRepository : IUserRepository
             WHERE user_id = @UserId
             ";
 
-        await this.conn.QueryAsync<Guid>(
+        await using var conn = await this.dataSource.OpenConnectionAsync();
+        await conn.QueryAsync<Guid>(
             sql,
             new
             {
                 Email = data.Email,
                 Password = data.Password,
                 Role = data.Role.ToString().ToLower(),
-                UserId = data.UserId
+                UserId = data.UserId,
             }
         );
 

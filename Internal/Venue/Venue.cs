@@ -41,11 +41,11 @@ public interface IVenueRepository
 
 public class VenueRepository : IVenueRepository
 {
-    private NpgsqlConnection conn;
+    private NpgsqlDataSource dataSource;
 
-    public VenueRepository(NpgsqlConnection conn)
+    public VenueRepository(NpgsqlDataSource dataSource)
     {
-        this.conn = conn;
+        this.dataSource = dataSource;
     }
 
     public async Task<GetVenueResponse[]> Get(PaginationResult pagination)
@@ -65,7 +65,8 @@ public class VenueRepository : IVenueRepository
             parameters.Add("Limit", pagination.Limit.Value);
         }
 
-        var venues = await this.conn.QueryAsync<GetVenueResponse>(sql, parameters);
+        await using var conn = await this.dataSource.OpenConnectionAsync();
+        var venues = await conn.QueryAsync<GetVenueResponse>(sql, parameters);
 
         return venues.ToArray();
     }
@@ -78,7 +79,8 @@ public class VenueRepository : IVenueRepository
             VALUES (@Name, @Description, @Capacity, @Location, @ImageUrl)
             ";
 
-        await this.conn.ExecuteAsync(sql, data);
+        await using var conn = await this.dataSource.OpenConnectionAsync();
+        await conn.ExecuteAsync(sql, data);
     }
 
     public async Task Update(UpdateVenueRequest data)
@@ -94,6 +96,7 @@ public class VenueRepository : IVenueRepository
             WHERE venue_id = @VenueId
             ";
 
-        await this.conn.ExecuteAsync(sql, data);
+        await using var conn = await this.dataSource.OpenConnectionAsync();
+        await conn.ExecuteAsync(sql, data);
     }
 }

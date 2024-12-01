@@ -24,6 +24,9 @@ public class CreateTicketRequest
 
     [Column("seat_id")]
     public Guid SeatId { get; set; }
+
+    [Column("event_id")]
+    public Guid EventId { get; set; }
 }
 
 public class CreateTicketResponse
@@ -32,7 +35,8 @@ public class CreateTicketResponse
     public string TicketNumber { get; set; } = string.Empty;
 }
 
-public class GetTicketResponse {
+public class GetTicketResponse
+{
     [Column("ticket_id")]
     public Guid TicketId { get; set; }
 
@@ -68,11 +72,11 @@ public interface ITicketRepository
 
 public class TicketRepository : ITicketRepository
 {
-    private NpgsqlConnection conn;
+    private NpgsqlDataSource dataSource;
 
-    public TicketRepository(NpgsqlConnection conn)
+    public TicketRepository(NpgsqlDataSource dataSource)
     {
-        this.conn = conn;
+        this.dataSource = dataSource;
     }
 
     public async Task<CreateTicketResponse> Create(CreateTicketRequest data)
@@ -80,19 +84,21 @@ public class TicketRepository : ITicketRepository
         var ticketNumber = Nanoid.Generate(size: 10);
         var sql =
             @"
-            INSERT INTO tickets (metadata, user_id, event_occurrence_id, seat_id, ticket_number)
-            VALUES (@Metadata, @UserId, @EventOccurrenceId, @SeatId, @TicketNumber)
+            INSERT INTO tickets (metadata, user_id, seat_id, event_id, ticket_number, status)
+            VALUES (@Metadata, @UserId, @SeatId, @EventId, @TicketNumber, 'reserved')
             RETURNING ticket_id
             ";
+
+        await using var conn = await this.dataSource.OpenConnectionAsync();
         await conn.ExecuteAsync(
             sql,
             new
             {
                 Metadata = data.Metadata,
                 UserId = data.UserId,
-                EventOccurrenceId = data.EventOccurrenceId,
                 SeatId = data.SeatId,
-                TicketNumber = ticketNumber, // Pass the generated TicketNumber here
+                EventId = data.EventId,
+                TicketNumber = ticketNumber,
             }
         );
 
@@ -108,6 +114,7 @@ public class TicketRepository : ITicketRepository
             WHERE ticket_id = @TicketId
             ";
 
+        await using var conn = await this.dataSource.OpenConnectionAsync();
         await conn.ExecuteAsync(sql, data);
     }
 }

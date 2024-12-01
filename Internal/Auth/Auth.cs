@@ -12,20 +12,17 @@ public interface IAuthRepository
 
 public class AuthRepository : IAuthRepository
 {
-    private readonly NpgsqlConnection conn;
+    private NpgsqlDataSource dataSource;
 
-    public AuthRepository(NpgsqlConnection conn)
+    public AuthRepository(NpgsqlDataSource dataSource)
     {
-        this.conn = conn;
+        this.dataSource = dataSource;
     }
 
     public async Task Register(RegisterRequest data)
     {
-        NpgsqlTransaction transaction = await this.conn.BeginTransactionAsync();
-
-        if(transaction.Connection == null) {
-            throw new Exception("Transaction connection is null.");
-        }
+        await using var conn = await this.dataSource.OpenConnectionAsync();
+        /*await using var txn = await conn.BeginTransactionAsync();*/
 
         var sql =
             @"
@@ -34,9 +31,10 @@ public class AuthRepository : IAuthRepository
             RETURNING user_id
             ";
 
-        var userRepo = new UserRepository(transaction.Connection);
+        // TODO: Pass the connection instead
+        var userRepo = new UserRepository(this.dataSource);
 
-        var userId = await this.conn.QuerySingleAsync<Guid>(
+        var userId = await conn.QuerySingleAsync<Guid>(
             sql,
             new
             {
@@ -49,7 +47,7 @@ public class AuthRepository : IAuthRepository
         data.UserId = userId;
 
         await userRepo.CreateDetails(data);
-        await transaction.CommitAsync();
+        /*await txn.CommitAsync();*/
     }
 
     public async Task<GetUserResponse> Login(LoginRequest data)
@@ -61,7 +59,8 @@ public class AuthRepository : IAuthRepository
             WHERE email = @Email AND password = @Password
             ";
 
-        var user = await this.conn.QuerySingleAsync<GetUserResponse>(sql, data);
+        await using var conn = await this.dataSource.OpenConnectionAsync();
+        var user = await conn.QuerySingleAsync<GetUserResponse>(sql, data);
 
         return user;
     }

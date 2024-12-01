@@ -30,7 +30,7 @@ public class TicketController
         {
             Status = ApiResponseStatus.Success,
             StatusCode = StatusCodes.Status201Created,
-            Message = "Created Successfully",
+            Message = "Successfully created ticket.",
         };
     }
 

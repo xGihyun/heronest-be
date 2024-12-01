@@ -78,11 +78,11 @@ public interface IEventRepository
 
 public class EventRepository : IEventRepository
 {
-    private NpgsqlConnection conn;
+    private NpgsqlDataSource dataSource;
 
-    public EventRepository(NpgsqlConnection conn)
+    public EventRepository(NpgsqlDataSource dataSource)
     {
-        this.conn = conn;
+        this.dataSource = dataSource;
     }
 
     public async Task<GetEventResponse[]> Get(GetEventFilter filter)
@@ -122,7 +122,8 @@ public class EventRepository : IEventRepository
             parameters.Add("Limit", filter.Limit.Value);
         }
 
-        var eventsResult = await this.conn.QueryAsync<GetEventResponse>(sql, parameters);
+        await using var conn = await this.dataSource.OpenConnectionAsync();
+        var eventsResult = await conn.QueryAsync<GetEventResponse>(sql, parameters);
         var events = eventsResult
             .Select(v =>
             {
@@ -155,6 +156,7 @@ public class EventRepository : IEventRepository
             VALUES (@Name, @Description, @StartAt, @EndAt, @VenueId)
             ";
 
+        await using var conn = await this.dataSource.OpenConnectionAsync();
         await conn.ExecuteAsync(sql, data);
     }
 
@@ -171,6 +173,7 @@ public class EventRepository : IEventRepository
             WHERE event_id = @EventId
             ";
 
+        await using var conn = await this.dataSource.OpenConnectionAsync();
         await conn.ExecuteAsync(sql, data);
     }
 }
