@@ -48,6 +48,12 @@ public class ReservedSeatEventDetail
 
     [Column("name")]
     public String Name { get; set; } = String.Empty;
+
+    [Column("start_at")]
+    public DateTime StartAt { get; set; }
+
+    [Column("end_at")]
+    public DateTime EndAt { get; set; }
 }
 
 public class SeatReservedBy
@@ -68,8 +74,26 @@ public class SeatReservedBy
 }
 
 [SqlMapper(CaseType.SnakeCase)]
-public class GetSeatResponse : CreateSeatRequest
+public class GetSeatResponse
 {
+    [Column("seat_id")]
+    public Guid SeatId { get; set; }
+
+    [Column("seat_number")]
+    public string SeatNumber { get; set; } = String.Empty;
+
+    [Column("status")]
+    public SeatStatus Status { get; set; }
+
+    [Column("seat_section_id")]
+    public Guid? SeatSectionId { get; set; }
+
+    [Column("venue_id")]
+    public Guid VenueId { get; set; }
+
+    [Column("metadata")]
+    public dynamic Metadata { get; set; } = new object { };
+
     [Column("reserved_by_json")]
     [JsonIgnore]
     public string? ReservedByJson { get; set; }
@@ -82,19 +106,21 @@ public interface ISeatRepository
 {
     Task Create(CreateSeatRequest data);
     Task CreateMany(CreateSeatRequest[] data);
-    Task<GetSeatResponse[]> Get(Guid venueId);
+    Task<GetSeatResponse[]> Get(Guid venueId, Guid eventId);
 }
 
 public class SeatRepository : ISeatRepository
 {
     private NpgsqlDataSource dataSource;
+    private readonly ITicketRepository ticketRepository;
 
-    public SeatRepository(NpgsqlDataSource dataSource)
+    public SeatRepository(NpgsqlDataSource dataSource, ITicketRepository ticketRepository)
     {
         this.dataSource = dataSource;
+        this.ticketRepository = ticketRepository;
     }
 
-    public async Task<GetSeatResponse[]> Get(Guid venueId)
+    public async Task<GetSeatResponse[]> Get(Guid venueId, Guid eventId)
     {
         var sql =
             @"
@@ -124,15 +150,21 @@ public class SeatRepository : ISeatRepository
                     ELSE NULL
                 END AS reserved_by_json
             FROM seats
-            LEFT JOIN tickets ON tickets.seat_id = seats.seat_id 
+            LEFT JOIN tickets 
+                ON tickets.seat_id = seats.seat_id  
+                AND tickets.event_id = @EventId
             LEFT JOIN users ON users.user_id = tickets.user_id
             LEFT JOIN user_details ON user_details.user_id = users.user_id
             LEFT JOIN events ON events.event_id = tickets.event_id
-            WHERE seats.venue_id = @VenueId
+            WHERE seats.venue_id = @VenueId 
+            ORDER BY seats.seat_number::int
             ";
 
         await using var conn = await this.dataSource.OpenConnectionAsync();
-        var seatsResult = await conn.QueryAsync<GetSeatResponse>(sql, new { VenueId = venueId });
+        var seatsResult = await conn.QueryAsync<GetSeatResponse>(
+            sql,
+            new { VenueId = venueId, EventId = eventId }
+        );
 
         var seats = seatsResult
             .Select(v =>
@@ -202,16 +234,17 @@ public class SeatRepository : ISeatRepository
             }
         );
 
-        var ticketRepo = new TicketRepository(this.dataSource);
-
-        if (data.ReservedBy is not null)
+        if (data.ReservedBy is not null && data.Status == SeatStatus.Reserved)
         {
-            await ticketRepo.Create(data.ReservedBy);
+            await this.ticketRepository.Create(data.ReservedBy);
         }
     }
 
     public async Task CreateMany(CreateSeatRequest[] data)
     {
+        await using var conn = await this.dataSource.OpenConnectionAsync();
+        await using var transaction = await conn.BeginTransactionAsync();
+
         var sql =
             @"
             INSERT INTO seats (seat_id, seat_number, status, seat_section_id, venue_id, metadata)
@@ -224,32 +257,36 @@ public class SeatRepository : ISeatRepository
                 metadata = @Metadata
             ";
 
-        await using var conn = await this.dataSource.OpenConnectionAsync();
-        await using var txn = await conn.BeginTransactionAsync();
-
-        var ticketRepo = new TicketRepository(this.dataSource);
-
-        foreach (var seat in data)
+        try
         {
-            await conn.ExecuteAsync(
-                sql,
-                new
-                {
-                    SeatId = seat.SeatId,
-                    SeatNumber = seat.SeatNumber,
-                    Status = seat.Status.ToString().ToLower(),
-                    SeatSectionId = seat.SeatSectionId,
-                    VenueId = seat.VenueId,
-                    Metadata = seat.Metadata,
-                }
-            );
-
-            if (seat.ReservedBy is not null)
+            foreach (var seat in data)
             {
-                await ticketRepo.Create(seat.ReservedBy);
-            }
-        }
+                await conn.ExecuteAsync(
+                    sql,
+                    new
+                    {
+                        SeatId = seat.SeatId,
+                        SeatNumber = seat.SeatNumber,
+                        Status = seat.Status.ToString().ToLower(),
+                        SeatSectionId = seat.SeatSectionId,
+                        VenueId = seat.VenueId,
+                        Metadata = seat.Metadata,
+                    },
+                    transaction: transaction
+                );
 
-        await txn.CommitAsync();
+                if (seat.ReservedBy is not null)
+                {
+                    await this.ticketRepository.Create(seat.ReservedBy, conn, transaction);
+                }
+            }
+
+            await transaction.CommitAsync();
+        }
+        catch
+        {
+            await transaction.RollbackAsync();
+            throw;
+        }
     }
 }

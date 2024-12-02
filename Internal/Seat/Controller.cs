@@ -25,7 +25,24 @@ public class SeatController
             };
         }
 
-        var seats = await this.repository.Get(venueId);
+        Guid? eventId = null;
+
+        if (context.Request.Query.TryGetValue("eventId", out var eventIdValue))
+        {
+            if (!Guid.TryParse(eventIdValue.ToString(), out var parsedEventId))
+            {
+                throw new ArgumentException("Invalid event ID.");
+            }
+
+            eventId = parsedEventId;
+        }
+
+        if (!eventId.HasValue)
+        {
+            throw new ArgumentException("Invalid event ID.");
+        }
+
+        var seats = await this.repository.Get(venueId, eventId.Value);
 
         return new ApiResponse
         {
@@ -74,14 +91,26 @@ public class SeatController
             };
         }
 
-        await this.repository.CreateMany(data);
-
-        return new ApiResponse
+        try
         {
-            Status = ApiResponseStatus.Success,
-            StatusCode = StatusCodes.Status201Created,
-            Message = "Successfully created seats.",
-        };
+            await this.repository.CreateMany(data);
+
+            return new ApiResponse
+            {
+                Status = ApiResponseStatus.Success,
+                StatusCode = StatusCodes.Status201Created,
+                Message = "Successfully created seats.",
+            };
+        }
+        catch (Exception ex)
+        {
+            return new ApiResponse
+            {
+                Status = ApiResponseStatus.Error,
+                StatusCode = StatusCodes.Status500InternalServerError,
+                Message = ex.Message,
+            };
+        }
     }
 }
 

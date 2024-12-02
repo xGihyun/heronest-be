@@ -95,6 +95,7 @@ public class EventRepository : IEventRepository
                 events.description, 
                 events.start_at, 
                 events.end_at,
+                events.image_url,
                 jsonb_build_object(
                     'venue_id', venues.venue_id,
                     'name', venues.name,
@@ -115,12 +116,15 @@ public class EventRepository : IEventRepository
             parameters.Add("VenueId", filter.VenueId);
         }
 
+        sql += " ORDER BY events.start_at";
+
         if (filter.Page.HasValue && filter.Limit.HasValue)
         {
             sql += " OFFSET @Offset LIMIT @Limit";
             parameters.Add("Offset", (filter.Page.Value - 1) * filter.Limit.Value);
             parameters.Add("Limit", filter.Limit.Value);
         }
+
 
         await using var conn = await this.dataSource.OpenConnectionAsync();
         var eventsResult = await conn.QueryAsync<GetEventResponse>(sql, parameters);
@@ -152,8 +156,8 @@ public class EventRepository : IEventRepository
     {
         var sql =
             @"
-            INSERT INTO events (name, description, start_at, end_at, venue_id)
-            VALUES (@Name, @Description, @StartAt, @EndAt, @VenueId)
+            INSERT INTO events (name, description, start_at, end_at, venue_id, image_url)
+            VALUES (@Name, @Description, @StartAt, @EndAt, @VenueId, @ImageUrl)
             ";
 
         await using var conn = await this.dataSource.OpenConnectionAsync();
@@ -169,7 +173,8 @@ public class EventRepository : IEventRepository
                 description = @Description, 
                 start_at = @StartAt, 
                 end_at = @EndAt, 
-                venue_id = @VenueId
+                venue_id = @VenueId,
+                image_url = @ImageUrl
             WHERE event_id = @EventId
             ";
 

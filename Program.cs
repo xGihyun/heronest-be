@@ -16,7 +16,7 @@ namespace Heronest;
 
 public class Program
 {
-    public static async Task Main(string[] args)
+    public static void Main(string[] args)
     {
         // TODO: Put this in Configuration
         var connectionString =
@@ -115,8 +115,12 @@ public class Program
             .WithName("UpdateVenue")
             .WithOpenApi();
 
-        var ticketController = new TicketController(new TicketRepository(dataSource));
+        var ticketRepository = new TicketRepository(dataSource);
+        var ticketController = new TicketController(ticketRepository);
 
+        app.MapGet("/api/tickets", ApiHandler.Handle(ticketController.Get))
+            .WithName("GetTickets")
+            .WithOpenApi();
         app.MapPost("/api/tickets", ApiHandler.Handle(ticketController.Create))
             .WithName("CreateTicket")
             .WithOpenApi();
@@ -124,7 +128,7 @@ public class Program
             .WithName("UpdateTicket")
             .WithOpenApi();
 
-        var seatController = new SeatController(new SeatRepository(dataSource));
+        var seatController = new SeatController(new SeatRepository(dataSource, ticketRepository));
 
         app.MapGet("/api/venues/{venueId}/seats", ApiHandler.Handle(seatController.Get))
             .WithName("GetVenueSeats")
