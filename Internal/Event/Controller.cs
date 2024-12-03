@@ -25,6 +25,13 @@ public class EventController
             venueId = parsedVenueId;
         }
 
+        string? name = null;
+
+        if (context.Request.Query.TryGetValue("name", out var nameValue))
+        {
+            name = nameValue.ToString();
+        }
+
         var pagination = new Pagination(context);
         var paginationResult = pagination.Parse();
 
@@ -34,6 +41,7 @@ public class EventController
                 Limit = paginationResult.Limit,
                 Page = paginationResult.Page,
                 VenueId = venueId,
+                Name = name
             }
         );
 

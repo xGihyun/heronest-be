@@ -67,14 +67,25 @@ public class SeatController
             };
         }
 
-        await this.repository.Create(data);
-
-        return new ApiResponse
+        try
         {
-            Status = ApiResponseStatus.Success,
-            StatusCode = StatusCodes.Status201Created,
-            Message = "Successfully created seats.",
-        };
+            await this.repository.Create(data);
+
+            return new ApiResponse
+            {
+                Status = ApiResponseStatus.Success,
+                StatusCode = StatusCodes.Status201Created,
+                Message = "Success.",
+            };
+        }
+        catch { 
+            return new ApiResponse
+            {
+                Status = ApiResponseStatus.Fail,
+                StatusCode = StatusCodes.Status409Conflict,
+                Message = "User has an existing reservation.",
+            };
+        }
     }
 
     public async Task<ApiResponse> CreateMany(HttpContext context)

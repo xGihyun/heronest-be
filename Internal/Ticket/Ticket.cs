@@ -33,14 +33,16 @@ public class CreateTicketRequest
     public Guid EventId { get; set; }
 }
 
-public class CreateTicketResponse
-{
-    [Column("ticket_id")]
-    public Guid TicketId { get; set; }
+public class CreateTicketResponse : GetTicketResponse;
 
-    [Column("ticket_number")]
-    public string TicketNumber { get; set; } = string.Empty;
-}
+/*public class CreateTicketResponse*/
+/*{*/
+/*    [Column("ticket_id")]*/
+/*    public Guid TicketId { get; set; }*/
+/**/
+/*    [Column("ticket_number")]*/
+/*    public string TicketNumber { get; set; } = string.Empty;*/
+/*}*/
 
 public class SeatDetail
 {
@@ -119,7 +121,12 @@ public class UpdateTicketRequest
 public interface ITicketRepository
 {
     Task<GetTicketResponse[]> Get();
-    Task<CreateTicketResponse> Create(
+    Task<GetTicketResponse> GetByTicketId(
+        Guid ticketId,
+        NpgsqlConnection? connection = null,
+        NpgsqlTransaction? transaction = null
+    );
+    Task<GetTicketResponse> Create(
         CreateTicketRequest data,
         NpgsqlConnection? connection = null,
         NpgsqlTransaction? transaction = null
@@ -230,7 +237,95 @@ public class TicketRepository : ITicketRepository
         return tickets.ToArray();
     }
 
-    public async Task<CreateTicketResponse> Create(
+    public async Task<GetTicketResponse?> GetByTicketId(
+        Guid ticketId,
+        NpgsqlConnection? connection = null,
+        NpgsqlTransaction? transaction = null
+    )
+    {
+        var shouldDisposeConnection = connection == null;
+        connection ??= await this.dataSource.OpenConnectionAsync();
+
+        var sql =
+            @"
+        SELECT
+            tickets.ticket_id,
+            tickets.created_at,
+            tickets.ticket_number,
+            tickets.status,
+            tickets.metadata,
+            jsonb_build_object(
+                'user_id', users.user_id,
+                'first_name', user_details.first_name,
+                'middle_name', user_details.middle_name,
+                'last_name', user_details.last_name,
+                'birth_date', user_details.birth_date,
+                'sex', user_details.sex
+            ) AS user_json,
+            jsonb_build_object(
+                'event_id', events.event_id,
+                'name', events.name,
+                'start_at', events.start_at,
+                'end_at', events.end_at
+            ) AS event_json,
+            jsonb_build_object(
+                'seat_id', seats.seat_id,
+                'seat_number', seats.seat_number
+            ) AS seat_json,
+            jsonb_build_object(
+                'venue_id', venues.venue_id,
+                'name', venues.name
+            ) AS venue_json
+        FROM tickets
+        JOIN users ON users.user_id = tickets.user_id
+        JOIN user_details ON user_details.user_id = users.user_id
+        JOIN events ON events.event_id = tickets.event_id
+        JOIN seats ON seats.seat_id = tickets.seat_id
+        JOIN venues ON venues.venue_id = events.venue_id
+        WHERE tickets.ticket_id = @TicketId
+        ";
+
+        var ticket = await connection.QueryFirstOrDefaultAsync<GetTicketResponse>(
+            sql,
+            new { TicketId = ticketId },
+            transaction: transaction
+        );
+
+        if (ticket is null)
+        {
+            return null;
+        }
+
+        var options = new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
+        };
+
+        ticket.Venue =
+            JsonSerializer.Deserialize<VenueDetail>(ticket.VenueJson, options)
+            ?? throw new Exception("Ticket venue is null.");
+
+        ticket.User =
+            JsonSerializer.Deserialize<UserDetailRequest>(ticket.UserJson, options)
+            ?? throw new Exception("Ticket user is null.");
+
+        ticket.Seat =
+            JsonSerializer.Deserialize<SeatDetail>(ticket.SeatJson, options)
+            ?? throw new Exception("Ticket seat is null.");
+
+        ticket.Event =
+            JsonSerializer.Deserialize<ReservedSeatEventDetail>(ticket.EventJson, options)
+            ?? throw new Exception("Ticket event is null.");
+
+        if (shouldDisposeConnection)
+        {
+            await connection.DisposeAsync();
+        }
+
+        return ticket;
+    }
+
+    public async Task<GetTicketResponse> Create(
         CreateTicketRequest data,
         NpgsqlConnection? connection = null,
         NpgsqlTransaction? transaction = null
@@ -241,7 +336,7 @@ public class TicketRepository : ITicketRepository
 
         try
         {
-            var ticketNumber = Nanoid.Generate(size: 10);
+            var ticketNumber = Nanoid.Generate("0123456789ABCDEF", 6);
 
             var sql =
                 @"
@@ -263,7 +358,9 @@ public class TicketRepository : ITicketRepository
                 transaction: transaction
             );
 
-            return new CreateTicketResponse { TicketNumber = ticketNumber, TicketId = ticketId };
+            var ticket = await this.GetByTicketId(ticketId, connection, transaction);
+
+            return ticket;
         }
         finally
         {

@@ -67,6 +67,7 @@ public class GetEventResponse
 public class GetEventFilter : PaginationResult
 {
     public Guid? VenueId { get; set; }
+    public string? Name { get; set; }
 }
 
 public interface IEventRepository
@@ -110,10 +111,22 @@ public class EventRepository : IEventRepository
 
         var parameters = new DynamicParameters();
 
+        // NOTE: This is gonna conflict with the `name` filter, but the frontend
+        // doesn't need to filter on both `venue_id` and `name` so it's fine for
+        // now.
         if (filter.VenueId.HasValue)
         {
             sql += " WHERE venues.venue_id = @VenueId";
             parameters.Add("VenueId", filter.VenueId);
+        }
+
+        if (filter.Name is not null)
+        {
+            sql +=
+                @" 
+                WHERE events.name ILIKE @Name
+                ";
+            parameters.Add("Name", $"%{filter.Name}%");
         }
 
         sql += " ORDER BY events.start_at";

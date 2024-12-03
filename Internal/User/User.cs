@@ -16,27 +16,27 @@ public enum Role
     Visitor,
 }
 
-[Table("users")]
-public class User
-{
-    [Column("user_id")]
-    public Guid UserId { get; set; }
-
-    [Column("created_at")]
-    public DateTime CreatedAt { get; set; }
-
-    [Column("updated_at")]
-    public DateTime UpdatedAt { get; set; }
-
-    [Column("email")]
-    public string Email { get; set; } = string.Empty;
-
-    [Column("password")]
-    public string Password { get; set; } = string.Empty;
-
-    [Column("role")]
-    public Role Role { get; set; }
-}
+/*[Table("users")]*/
+/*public class User*/
+/*{*/
+/*    [Column("user_id")]*/
+/*    public Guid UserId { get; set; }*/
+/**/
+/*    [Column("created_at")]*/
+/*    public DateTime CreatedAt { get; set; }*/
+/**/
+/*    [Column("updated_at")]*/
+/*    public DateTime UpdatedAt { get; set; }*/
+/**/
+/*    [Column("email")]*/
+/*    public string Email { get; set; } = string.Empty;*/
+/**/
+/*    [Column("password")]*/
+/*    public string Password { get; set; } = string.Empty;*/
+/**/
+/*    [Column("role")]*/
+/*    public Role Role { get; set; }*/
+/*}*/
 
 [SqlMapper(CaseType.SnakeCase)]
 public class GetUserResponse : UserDetailRequest
@@ -46,6 +46,9 @@ public class GetUserResponse : UserDetailRequest
 
     [Column("role")]
     public Role Role { get; set; }
+
+    [Column("avatar_url")]
+    public string? AvatarUrl { get; set; }
 }
 
 public class CreateUserRequest : GetUserResponse
@@ -56,13 +59,22 @@ public class CreateUserRequest : GetUserResponse
 
 public class UpdateUserRequest : CreateUserRequest;
 
+public class GetUserFilter : PaginationResult
+{
+    public string? Name { get; set; }
+}
+
 public interface IUserRepository
 {
-    Task<GetUserResponse[]> Get(PaginationResult pagination);
+    Task<GetUserResponse[]> Get(GetUserFilter filter);
     Task<GetUserResponse> GetById(Guid userId);
     Task Create(CreateUserRequest data);
     Task Update(UpdateUserRequest data);
-    Task CreateDetails(UserDetailRequest data);
+    Task CreateDetails(
+        UserDetailRequest data,
+        NpgsqlConnection? connection = null,
+        NpgsqlTransaction? transaction = null
+    );
     Task UpdateDetails(UserDetailRequest data);
 }
 
@@ -75,7 +87,7 @@ public class UserRepository : IUserRepository
         this.dataSource = dataSource;
     }
 
-    public async Task<GetUserResponse[]> Get(PaginationResult pagination)
+    public async Task<GetUserResponse[]> Get(GetUserFilter filter)
     {
         var sql =
             @"
@@ -94,11 +106,23 @@ public class UserRepository : IUserRepository
 
         var parameters = new DynamicParameters();
 
-        if (pagination.Page.HasValue && pagination.Limit.HasValue)
+        if (filter.Name is not null)
+        {
+            sql +=
+                @" 
+                WHERE users.email ILIKE @Name
+                    OR user_details.first_name ILIKE @Name
+                    OR user_details.middle_name ILIKE @Name
+                    OR user_details.last_name ILIKE @Name
+                ";
+            parameters.Add("Name", $"%{filter.Name}%");
+        }
+
+        if (filter.Page.HasValue && filter.Limit.HasValue)
         {
             sql += " OFFSET @Offset LIMIT @Limit";
-            parameters.Add("Offset", (pagination.Page.Value - 1) * pagination.Limit.Value);
-            parameters.Add("Limit", pagination.Limit.Value);
+            parameters.Add("Offset", (filter.Page.Value - 1) * filter.Limit.Value);
+            parameters.Add("Limit", filter.Limit.Value);
         }
 
         await using var conn = await this.dataSource.OpenConnectionAsync();
@@ -131,16 +155,22 @@ public class UserRepository : IUserRepository
         return user;
     }
 
-    public async Task CreateDetails(UserDetailRequest data)
+    public async Task CreateDetails(
+        UserDetailRequest data,
+        NpgsqlConnection? connection = null,
+        NpgsqlTransaction? transaction = null
+    )
     {
+        var shouldDisposeConnection = connection == null;
+        connection ??= await this.dataSource.OpenConnectionAsync();
+
         var sql =
             @"
             INSERT INTO user_details (first_name, middle_name, last_name, birth_date, sex, user_id)
             VALUES (@FirstName, @MiddleName, @LastName, @BirthDate, @Sex::sex, @UserId)
             ";
 
-        await using var conn = await this.dataSource.OpenConnectionAsync();
-        await conn.ExecuteAsync(
+        await connection.ExecuteAsync(
             sql,
             new
             {
@@ -150,8 +180,14 @@ public class UserRepository : IUserRepository
                 BirthDate = data.BirthDate,
                 Sex = data.Sex.ToString().ToLower(),
                 UserId = data.UserId,
-            }
+            },
+            transaction: transaction
         );
+
+        if (shouldDisposeConnection)
+        {
+            await connection.DisposeAsync();
+        }
     }
 
     public async Task UpdateDetails(UserDetailRequest data)

@@ -29,6 +29,11 @@ public class CreateVenueRequest
 
 public class UpdateVenueRequest : CreateVenueRequest;
 
+public class GetVenueFilter : PaginationResult
+{
+    public string? Name { get; set; }
+}
+
 [SqlMapper(CaseType.SnakeCase)]
 public class GetVenueResponse : CreateVenueRequest;
 
@@ -36,7 +41,7 @@ public interface IVenueRepository
 {
     Task Create(CreateVenueRequest data);
     Task Update(UpdateVenueRequest data);
-    Task<GetVenueResponse[]> Get(PaginationResult pagination);
+    Task<GetVenueResponse[]> Get(GetVenueFilter filter);
 }
 
 public class VenueRepository : IVenueRepository
@@ -48,7 +53,7 @@ public class VenueRepository : IVenueRepository
         this.dataSource = dataSource;
     }
 
-    public async Task<GetVenueResponse[]> Get(PaginationResult pagination)
+    public async Task<GetVenueResponse[]> Get(GetVenueFilter filter)
     {
         var sql =
             @"
@@ -58,11 +63,20 @@ public class VenueRepository : IVenueRepository
 
         var parameters = new DynamicParameters();
 
-        if (pagination.Page.HasValue && pagination.Limit.HasValue)
+        if (filter.Name is not null)
+        {
+            sql +=
+                @" 
+                WHERE name ILIKE @Name
+                ";
+            parameters.Add("Name", $"%{filter.Name}%");
+        }
+
+        if (filter.Page.HasValue && filter.Limit.HasValue)
         {
             sql += " OFFSET @Offset LIMIT @Limit";
-            parameters.Add("Offset", (pagination.Page.Value - 1) * pagination.Limit.Value);
-            parameters.Add("Limit", pagination.Limit.Value);
+            parameters.Add("Offset", (filter.Page.Value - 1) * filter.Limit.Value);
+            parameters.Add("Limit", filter.Limit.Value);
         }
 
         await using var conn = await this.dataSource.OpenConnectionAsync();

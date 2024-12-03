@@ -46,7 +46,7 @@ public class ApiHandler
                     Message = ex.Message,
                 };
 
-                Console.WriteLine(response.Message);
+                Console.WriteLine("Unhandled: ", response.Message);
 
                 return Results.Json(response, statusCode: response.StatusCode);
             }

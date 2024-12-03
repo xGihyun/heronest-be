@@ -26,14 +26,26 @@ public class AuthController
             };
         }
 
-        await this.repository.Register(data);
-
-        return new ApiResponse
+        try
         {
-            Status = ApiResponseStatus.Success,
-            StatusCode = StatusCodes.Status201Created,
-            Message = "Successfully registered.",
-        };
+            await this.repository.Register(data);
+
+            return new ApiResponse
+            {
+                Status = ApiResponseStatus.Success,
+                StatusCode = StatusCodes.Status201Created,
+                Message = "Successfully registered.",
+            };
+        }
+        catch
+        {
+            return new ApiResponse
+            {
+                Status = ApiResponseStatus.Error,
+                StatusCode = StatusCodes.Status500InternalServerError,
+                Message = "Server error during registration.",
+            };
+        }
     }
 
     public async Task<ApiResponse> Login(HttpContext context)
@@ -50,14 +62,26 @@ public class AuthController
             };
         }
 
-        GetUserResponse user = await this.repository.Login(data);
-
-        return new ApiResponse
+        try
         {
-            Status = ApiResponseStatus.Success,
-            StatusCode = StatusCodes.Status200OK,
-            Message = "Successfully logged in.",
-            Data = user,
-        };
+            GetUserResponse user = await this.repository.Login(data);
+
+            return new ApiResponse
+            {
+                Status = ApiResponseStatus.Success,
+                StatusCode = StatusCodes.Status200OK,
+                Message = "Successfully logged in.",
+                Data = user,
+            };
+        }
+        catch
+        {
+            return new ApiResponse
+            {
+                Status = ApiResponseStatus.Fail,
+                StatusCode = StatusCodes.Status404NotFound,
+                Message = "User with the given credentials not found.",
+            };
+        }
     }
 }

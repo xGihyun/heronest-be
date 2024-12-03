@@ -111,7 +111,7 @@ public interface ISeatRepository
 
 public class SeatRepository : ISeatRepository
 {
-    private NpgsqlDataSource dataSource;
+    private readonly NpgsqlDataSource dataSource;
     private readonly ITicketRepository ticketRepository;
 
     public SeatRepository(NpgsqlDataSource dataSource, ITicketRepository ticketRepository)

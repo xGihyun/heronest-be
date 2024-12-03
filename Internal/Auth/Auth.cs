@@ -12,17 +12,19 @@ public interface IAuthRepository
 
 public class AuthRepository : IAuthRepository
 {
-    private NpgsqlDataSource dataSource;
+    private readonly NpgsqlDataSource dataSource;
+    private readonly IUserRepository userRepository;
 
-    public AuthRepository(NpgsqlDataSource dataSource)
+    public AuthRepository(NpgsqlDataSource dataSource, IUserRepository userRepository)
     {
         this.dataSource = dataSource;
+        this.userRepository = userRepository;
     }
 
     public async Task Register(RegisterRequest data)
     {
         await using var conn = await this.dataSource.OpenConnectionAsync();
-        /*await using var txn = await conn.BeginTransactionAsync();*/
+        await using var transaction = await conn.BeginTransactionAsync();
 
         var sql =
             @"
@@ -31,9 +33,6 @@ public class AuthRepository : IAuthRepository
             RETURNING user_id
             ";
 
-        // TODO: Pass the connection instead
-        var userRepo = new UserRepository(this.dataSource);
-
         var userId = await conn.QuerySingleAsync<Guid>(
             sql,
             new
@@ -41,13 +40,14 @@ public class AuthRepository : IAuthRepository
                 Email = data.Email,
                 Password = data.Password,
                 Role = data.Role.ToString().ToLower(),
-            }
+            },
+            transaction: transaction
         );
 
         data.UserId = userId;
 
-        await userRepo.CreateDetails(data);
-        /*await txn.CommitAsync();*/
+        await this.userRepository.CreateDetails(data, conn, transaction);
+        await transaction.CommitAsync();
     }
 
     public async Task<GetUserResponse> Login(LoginRequest data)

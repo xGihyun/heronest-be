@@ -83,10 +83,24 @@ public class VenueController
 
     public async Task<ApiResponse> Get(HttpContext context)
     {
+        string? name = null;
+
+        if (context.Request.Query.TryGetValue("name", out var nameValue))
+        {
+            name = nameValue.ToString();
+        }
+
         var pagination = new Pagination(context);
         var paginationResult = pagination.Parse();
 
-        var venues = await this.repository.Get(paginationResult);
+        var venues = await this.repository.Get(
+            new GetVenueFilter
+            {
+                Limit = paginationResult.Limit,
+                Page = paginationResult.Page,
+                Name = name,
+            }
+        );
 
         return new ApiResponse
         {

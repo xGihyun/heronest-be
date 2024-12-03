@@ -32,7 +32,6 @@ public class Program
 
         var builder = WebApplication.CreateBuilder(args);
 
-
         SqlMapperConfig.ConfigureMappers(Assembly.GetExecutingAssembly());
 
         // Add services to the container.
@@ -76,16 +75,8 @@ public class Program
         app.UseHttpsRedirection();
         app.UseAuthorization();
 
-        var authController = new AuthController(new AuthRepository(dataSource));
-
-        app.MapPost("/api/register", ApiHandler.Handle(authController.Register))
-            .WithName("Register")
-            .WithOpenApi();
-        app.MapPost("/api/login", ApiHandler.Handle(authController.Login))
-            .WithName("Login")
-            .WithOpenApi();
-
-        var userController = new UserController(new UserRepository(dataSource));
+        var userRepository = new UserRepository(dataSource);
+        var userController = new UserController(userRepository);
 
         app.MapGet("/api/users", ApiHandler.Handle(userController.Get))
             .WithName("GetUsers")
@@ -101,6 +92,15 @@ public class Program
             .WithOpenApi();
         app.MapPost("/api/users/{userId}/details", ApiHandler.Handle(userController.CreateDetails))
             .WithName("CreateUserDetail")
+            .WithOpenApi();
+
+        var authController = new AuthController(new AuthRepository(dataSource, userRepository));
+
+        app.MapPost("/api/register", ApiHandler.Handle(authController.Register))
+            .WithName("Register")
+            .WithOpenApi();
+        app.MapPost("/api/login", ApiHandler.Handle(authController.Login))
+            .WithName("Login")
             .WithOpenApi();
 
         var venueController = new VenueController(new VenueRepository(dataSource));
@@ -137,7 +137,9 @@ public class Program
             .WithName("CreateVenueSeats")
             .WithOpenApi();
 
-        var seatSectionController = new SeatSectionController(new SeatSectionRepository(dataSource));
+        var seatSectionController = new SeatSectionController(
+            new SeatSectionRepository(dataSource)
+        );
 
         app.MapPost("/api/seat-section", ApiHandler.Handle(seatSectionController.Create))
             .WithName("CreateSeatSection")
