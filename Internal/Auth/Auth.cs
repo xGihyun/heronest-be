@@ -1,4 +1,5 @@
 using Dapper;
+using Heronest.Internal.User;
 using Npgsql;
 
 namespace Heronest.Internal.Auth;
@@ -6,38 +7,50 @@ namespace Heronest.Internal.Auth;
 public interface IAuthRepository
 {
     Task Register(RegisterRequest data);
-    Task Login(LoginRequest data);
+    Task<GetUserResponse> Login(LoginRequest data);
 }
 
 public class AuthRepository : IAuthRepository
 {
-    private readonly NpgsqlConnection conn;
+    private readonly NpgsqlDataSource dataSource;
+    private readonly IUserRepository userRepository;
 
-    public AuthRepository(NpgsqlConnection conn)
+    public AuthRepository(NpgsqlDataSource dataSource, IUserRepository userRepository)
     {
-        this.conn = conn;
+        this.dataSource = dataSource;
+        this.userRepository = userRepository;
     }
 
     public async Task Register(RegisterRequest data)
     {
+        await using var conn = await this.dataSource.OpenConnectionAsync();
+        await using var transaction = await conn.BeginTransactionAsync();
+
         var sql =
             @"
             INSERT INTO users (email, password, role)
             VALUES (@Email, @Password, @Role::role)
+            RETURNING user_id
             ";
 
-        await this.conn.ExecuteAsync(
+        var userId = await conn.QuerySingleAsync<Guid>(
             sql,
             new
             {
                 Email = data.Email,
                 Password = data.Password,
                 Role = data.Role.ToString().ToLower(),
-            }
+            },
+            transaction: transaction
         );
+
+        data.UserId = userId;
+
+        await this.userRepository.CreateDetails(data, conn, transaction);
+        await transaction.CommitAsync();
     }
 
-    public async Task Login(LoginRequest data)
+    public async Task<GetUserResponse> Login(LoginRequest data)
     {
         var sql =
             @"
@@ -46,6 +59,9 @@ public class AuthRepository : IAuthRepository
             WHERE email = @Email AND password = @Password
             ";
 
-        await this.conn.QuerySingleAsync(sql, data);
+        await using var conn = await this.dataSource.OpenConnectionAsync();
+        var user = await conn.QuerySingleAsync<GetUserResponse>(sql, data);
+
+        return user;
     }
 }

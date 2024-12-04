@@ -11,9 +11,69 @@ public class TicketController
         this.repository = ticketRepository;
     }
 
-    public async Task<ApiResponse> CreateTicket(HttpContext context)
+    public async Task<ApiResponse> GetByTicketNumber(HttpContext context)
     {
-        var data = await context.Request.ReadFromJsonAsync<TicketRequest>();
+        string? ticketNumber = context.GetRouteValue("ticketNumber")?.ToString();
+
+        if (ticketNumber is null)
+        {
+            return new ApiResponse
+            {
+                Status = ApiResponseStatus.Fail,
+                StatusCode = StatusCodes.Status404NotFound,
+                Message = "Ticket number not found.",
+            };
+        }
+
+        var ticket = await this.repository.GetByTicketNumber(ticketNumber);
+
+        return new ApiResponse
+        {
+            Status = ApiResponseStatus.Success,
+            StatusCode = StatusCodes.Status200OK,
+            Message = "Successfully fetched ticket.",
+            Data = ticket,
+        };
+    }
+
+    public async Task<ApiResponse> Get(HttpContext context)
+    {
+        Guid? eventId = null;
+
+        if (context.Request.Query.TryGetValue("eventId", out var eventIdValue))
+        {
+            if (!Guid.TryParse(eventIdValue.ToString(), out var parsedEventId))
+            {
+                throw new ArgumentException("Invalid event ID.");
+            }
+
+            eventId = parsedEventId;
+        }
+
+        var pagination = new Pagination(context);
+        var paginationResult = pagination.Parse();
+
+        var tickets = await this.repository.Get(
+            new GetTicketFilter
+            {
+                Limit = paginationResult.Limit,
+                Page = paginationResult.Page,
+                EventId = eventId,
+            }
+        );
+
+        return new ApiResponse
+        {
+            Status = ApiResponseStatus.Success,
+            StatusCode = StatusCodes.Status200OK,
+            Message = "Successfully fetched tickets.",
+            Data = tickets,
+        };
+    }
+
+    public async Task<ApiResponse> Create(HttpContext context)
+    {
+        var data = await context.Request.ReadFromJsonAsync<CreateTicketRequest>();
 
         if (data is null)
         {
@@ -21,15 +81,64 @@ public class TicketController
             {
                 Status = ApiResponseStatus.Fail,
                 StatusCode = StatusCodes.Status400BadRequest,
+                Message = "Invalid JSON request.",
             };
         }
-        await this.repository.CreateTicket(data);
+
+        var result = await this.repository.Create(data);
+
         return new ApiResponse
         {
             Status = ApiResponseStatus.Success,
             StatusCode = StatusCodes.Status201Created,
-            Message = "API response success",
+            Message = "Successfully created ticket.",
+            Data = result,
+        };
+    }
+
+    public async Task<ApiResponse> Update(HttpContext context)
+    {
+        Guid ticketId;
+
+        if (!Guid.TryParse(context.GetRouteValue("ticketId")?.ToString(), out ticketId))
+        {
+            return new ApiResponse
+            {
+                Status = ApiResponseStatus.Fail,
+                StatusCode = StatusCodes.Status400BadRequest,
+                Message = "Invalid ticket ID.",
+            };
+        }
+
+        var data = await context.Request.ReadFromJsonAsync<UpdateTicketRequest>();
+
+        if (data is null)
+        {
+            return new ApiResponse
+            {
+                Status = ApiResponseStatus.Fail,
+                StatusCode = StatusCodes.Status400BadRequest,
+                Message = "Invalid JSON request.",
+            };
+        }
+
+        if (data.TicketId != ticketId)
+        {
+            return new ApiResponse
+            {
+                Status = ApiResponseStatus.Fail,
+                StatusCode = StatusCodes.Status400BadRequest,
+                Message = "Ticket IDs don't match.",
+            };
+        }
+
+        await this.repository.Update(data);
+
+        return new ApiResponse
+        {
+            Status = ApiResponseStatus.Success,
+            StatusCode = StatusCodes.Status201Created,
+            Message = "Successfully updated.",
         };
     }
 }
-

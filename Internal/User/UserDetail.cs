@@ -1,4 +1,3 @@
-using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
 using NpgsqlTypes;
@@ -14,16 +13,8 @@ public enum Sex
     Female,
 }
 
-[Table("user_details")]
-public class UserDetail
+public class UserDetailRequest
 {
-    [Column("user_id")]
-    [Key]
-    public Guid UserId { get; set; }
-
-    [Column("created_at")]
-    public DateTime CreatedAt { get; set; }
-
     [Column("first_name")]
     public string FirstName { get; set; } = string.Empty;
 
@@ -38,19 +29,7 @@ public class UserDetail
 
     [Column("sex")]
     public Sex Sex { get; set; }
-}
 
-public class UserDetailRequest
-{
-    public string FirstName { get; set; } = string.Empty;
-
-    public string? MiddleName { get; set; }
-
-    public string LastName { get; set; } = string.Empty;
-
-    public DateTime BirthDate { get; set; }
-
-    public Sex Sex { get; set; }
-
+    [Column("user_id")]
     public Guid UserId { get; set; }
 }
