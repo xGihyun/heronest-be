@@ -56,6 +56,12 @@ public class ReservedSeatEventDetail
     public DateTime EndAt { get; set; }
 }
 
+public class ReservedTicketDetail
+{
+    [Column("ticket_number")]
+    public string TicketNumber { get; set; }
+}
+
 public class SeatReservedBy
 {
     [Column("user_json")]
@@ -71,6 +77,13 @@ public class SeatReservedBy
 
     [Column("event")]
     public ReservedSeatEventDetail Event { get; set; } = new ReservedSeatEventDetail();
+
+    [Column("ticket_json")]
+    [JsonIgnore]
+    public string TicketJson { get; set; } = string.Empty;
+
+    [Column("ticket")]
+    public ReservedTicketDetail Ticket { get; set; } = new ReservedTicketDetail();
 }
 
 [SqlMapper(CaseType.SnakeCase)]
@@ -82,6 +95,7 @@ public class GetSeatResponse
     [Column("seat_number")]
     public string SeatNumber { get; set; } = String.Empty;
 
+    // TODO: Remove this
     [Column("status")]
     public SeatStatus Status { get; set; }
 
@@ -145,6 +159,9 @@ public class SeatRepository : ISeatRepository
                             'event', jsonb_build_object(
                                 'event_id', events.event_id,
                                 'name', events.name
+                            ),
+                            'ticket', jsonb_build_object(
+                                'ticket_number', tickets.ticket_number
                             )
                         )
                     ELSE NULL

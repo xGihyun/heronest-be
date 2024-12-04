@@ -1,14 +1,17 @@
 using Heronest.Internal.Api;
+using Heronest.Internal.Ticket;
 
 namespace Heronest.Internal.User;
 
 public class UserController
 {
     private readonly IUserRepository repository;
+    private readonly ITicketRepository ticketRepository;
 
-    public UserController(IUserRepository userRepository)
+    public UserController(IUserRepository userRepository, ITicketRepository ticketRepository)
     {
         this.repository = userRepository;
+        this.ticketRepository = ticketRepository;
     }
 
     public async Task<ApiResponse> Get(HttpContext context)
@@ -171,6 +174,31 @@ public class UserController
             Status = ApiResponseStatus.Success,
             StatusCode = StatusCodes.Status201Created,
             Message = "Successfully created user details.",
+        };
+    }
+
+    public async Task<ApiResponse> GetTickets(HttpContext context)
+    {
+        Guid userId;
+
+        if (!Guid.TryParse(context.GetRouteValue("userId")?.ToString(), out userId))
+        {
+            return new ApiResponse
+            {
+                Status = ApiResponseStatus.Fail,
+                StatusCode = StatusCodes.Status400BadRequest,
+                Message = "Invalid user ID.",
+            };
+        }
+
+        var tickets = await this.ticketRepository.GetByUserId(userId);
+
+        return new ApiResponse
+        {
+            Status = ApiResponseStatus.Success,
+            StatusCode = StatusCodes.Status200OK,
+            Message = "Successfully fetched tickets.",
+            Data = tickets,
         };
     }
 }

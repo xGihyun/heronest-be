@@ -121,6 +121,8 @@ public class UpdateTicketRequest
 public interface ITicketRepository
 {
     Task<GetTicketResponse[]> Get();
+    Task<GetTicketResponse> GetByTicketNumber(string ticketNumber);
+    Task<GetTicketResponse[]> GetByUserId(Guid userId);
     Task<GetTicketResponse> GetByTicketId(
         Guid ticketId,
         NpgsqlConnection? connection = null,
@@ -141,6 +143,83 @@ public class TicketRepository : ITicketRepository
     public TicketRepository(NpgsqlDataSource dataSource)
     {
         this.dataSource = dataSource;
+    }
+
+    public async Task<GetTicketResponse> GetByTicketNumber(string ticketNumber)
+    {
+        var sql =
+            @"
+            SELECT
+                tickets.ticket_id,
+                tickets.created_at,
+                tickets.ticket_number,
+                tickets.status,
+                tickets.metadata,
+                jsonb_build_object(
+                    'user_id', users.user_id,
+                    'first_name', user_details.first_name,
+                    'middle_name', user_details.middle_name,
+                    'last_name', user_details.last_name,
+                    'birth_date', user_details.birth_date,
+                    'sex', user_details.sex
+                ) AS user_json,
+                jsonb_build_object(
+                    'event_id', events.event_id,
+                    'name', events.name,
+                    'start_at', events.start_at,
+                    'end_at', events.end_at
+                ) AS event_json,
+                jsonb_build_object(
+                    'seat_id', seats.seat_id,
+                    'seat_number', seats.seat_number
+                ) AS seat_json,
+                jsonb_build_object(
+                    'venue_id', venues.venue_id,
+                    'name', venues.name
+                ) AS venue_json
+            FROM tickets
+            JOIN users ON users.user_id = tickets.user_id
+            JOIN user_details ON user_details.user_id = users.user_id
+            JOIN events ON events.event_id = tickets.event_id
+            JOIN seats ON seats.seat_id = tickets.seat_id
+            JOIN venues ON venues.venue_id = events.venue_id
+            WHERE tickets.ticket_number = @TicketNumber
+            ORDER BY tickets.created_at DESC
+            ";
+
+        await using var conn = await this.dataSource.OpenConnectionAsync();
+        var ticket = await conn.QueryFirstOrDefaultAsync<GetTicketResponse>(
+            sql,
+            new { TicketNumber = ticketNumber }
+        );
+
+        if (ticket is null)
+        {
+            return null;
+        }
+
+        var options = new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
+        };
+
+        ticket.Venue =
+            JsonSerializer.Deserialize<VenueDetail>(ticket.VenueJson, options)
+            ?? throw new Exception("Ticket venue is null.");
+
+        ticket.User =
+            JsonSerializer.Deserialize<UserDetailRequest>(ticket.UserJson, options)
+            ?? throw new Exception("Ticket user is null.");
+
+        ticket.Seat =
+            JsonSerializer.Deserialize<SeatDetail>(ticket.SeatJson, options)
+            ?? throw new Exception("Ticket seat is null.");
+
+        ticket.Event =
+            JsonSerializer.Deserialize<ReservedSeatEventDetail>(ticket.EventJson, options)
+            ?? throw new Exception("Ticket event is null.");
+
+        return ticket;
     }
 
     public async Task<GetTicketResponse[]> Get()
@@ -181,10 +260,109 @@ public class TicketRepository : ITicketRepository
             JOIN events ON events.event_id = tickets.event_id
             JOIN seats ON seats.seat_id = tickets.seat_id
             JOIN venues ON venues.venue_id = events.venue_id
+            ORDER BY tickets.created_at DESC
             ";
 
         await using var conn = await this.dataSource.OpenConnectionAsync();
         var ticketsResult = await conn.QueryAsync<GetTicketResponse>(sql);
+        var tickets = ticketsResult.Select(v =>
+        {
+            var options = new JsonSerializerOptions
+            {
+                PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
+            };
+
+            var venue = JsonSerializer.Deserialize<VenueDetail>(v.VenueJson, options);
+
+            if (venue is null)
+            {
+                throw new Exception("Ticket venue is null.");
+            }
+
+            v.Venue = venue;
+
+            var user = JsonSerializer.Deserialize<UserDetailRequest>(v.UserJson, options);
+
+            if (user is null)
+            {
+                throw new Exception("Ticket user is null.");
+            }
+
+            v.User = user;
+
+            var seat = JsonSerializer.Deserialize<SeatDetail>(v.SeatJson, options);
+
+            if (seat is null)
+            {
+                throw new Exception("Ticket seat is null.");
+            }
+
+            v.Seat = seat;
+
+            var ticketEvent = JsonSerializer.Deserialize<ReservedSeatEventDetail>(
+                v.EventJson,
+                options
+            );
+
+            if (ticketEvent is null)
+            {
+                throw new Exception("Ticket event is null.");
+            }
+
+            v.Event = ticketEvent;
+
+            return v;
+        });
+
+        return tickets.ToArray();
+    }
+
+    public async Task<GetTicketResponse[]> GetByUserId(Guid userId)
+    {
+        // TODO: Put this in a SQL file since it's similar to the query of
+        // `Get()`
+        var sql =
+            @"
+            SELECT
+                tickets.ticket_id,
+                tickets.created_at,
+                tickets.ticket_number,
+                tickets.status,
+                tickets.metadata,
+                jsonb_build_object(
+                    'user_id', users.user_id,
+                    'first_name', user_details.first_name,
+                    'middle_name', user_details.middle_name,
+                    'last_name', user_details.last_name,
+                    'birth_date', user_details.birth_date,
+                    'sex', user_details.sex
+                ) AS user_json,
+                jsonb_build_object(
+                    'event_id', events.event_id,
+                    'name', events.name,
+                    'start_at', events.start_at,
+                    'end_at', events.end_at
+                ) AS event_json,
+                jsonb_build_object(
+                    'seat_id', seats.seat_id,
+                    'seat_number', seats.seat_number
+                ) AS seat_json,
+                jsonb_build_object(
+                    'venue_id', venues.venue_id,
+                    'name', venues.name
+                ) AS venue_json
+            FROM tickets
+            JOIN users ON users.user_id = tickets.user_id
+            JOIN user_details ON user_details.user_id = users.user_id
+            JOIN events ON events.event_id = tickets.event_id
+            JOIN seats ON seats.seat_id = tickets.seat_id
+            JOIN venues ON venues.venue_id = events.venue_id
+            WHERE tickets.user_id = @UserId
+            ORDER BY tickets.created_at DESC
+            ";
+
+        await using var conn = await this.dataSource.OpenConnectionAsync();
+        var ticketsResult = await conn.QueryAsync<GetTicketResponse>(sql, new { UserId = userId });
         var tickets = ticketsResult.Select(v =>
         {
             var options = new JsonSerializerOptions

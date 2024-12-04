@@ -11,6 +11,31 @@ public class TicketController
         this.repository = ticketRepository;
     }
 
+    public async Task<ApiResponse> GetByTicketNumber(HttpContext context)
+    {
+        string? ticketNumber = context.GetRouteValue("ticketNumber")?.ToString();
+
+        if (ticketNumber is null)
+        {
+            return new ApiResponse
+            {
+                Status = ApiResponseStatus.Fail,
+                StatusCode = StatusCodes.Status404NotFound,
+                Message = "Ticket number not found.",
+            };
+        }
+
+        var ticket = await this.repository.GetByTicketNumber(ticketNumber);
+
+        return new ApiResponse
+        {
+            Status = ApiResponseStatus.Success,
+            StatusCode = StatusCodes.Status200OK,
+            Message = "Successfully fetched ticket.",
+            Data = ticket,
+        };
+    }
+
     public async Task<ApiResponse> Get(HttpContext context)
     {
         var tickets = await this.repository.Get();
@@ -34,7 +59,7 @@ public class TicketController
             {
                 Status = ApiResponseStatus.Fail,
                 StatusCode = StatusCodes.Status400BadRequest,
-                Message = "Invalid JSON request."
+                Message = "Invalid JSON request.",
             };
         }
 

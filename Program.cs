@@ -75,14 +75,21 @@ public class Program
         app.UseHttpsRedirection();
         app.UseAuthorization();
 
+
+        var ticketRepository = new TicketRepository(dataSource);
+        var ticketController = new TicketController(ticketRepository);
+
         var userRepository = new UserRepository(dataSource);
-        var userController = new UserController(userRepository);
+        var userController = new UserController(userRepository, ticketRepository);
 
         app.MapGet("/api/users", ApiHandler.Handle(userController.Get))
             .WithName("GetUsers")
             .WithOpenApi();
         app.MapGet("/api/users/{userId}", ApiHandler.Handle(userController.GetById))
             .WithName("GetUser")
+            .WithOpenApi();
+        app.MapGet("/api/users/{userId}/tickets", ApiHandler.Handle(userController.GetTickets))
+            .WithName("GetUserTickets")
             .WithOpenApi();
         app.MapPatch("/api/users/{userId}", ApiHandler.Handle(userController.Update))
             .WithName("UpdateUser")
@@ -115,11 +122,11 @@ public class Program
             .WithName("UpdateVenue")
             .WithOpenApi();
 
-        var ticketRepository = new TicketRepository(dataSource);
-        var ticketController = new TicketController(ticketRepository);
-
         app.MapGet("/api/tickets", ApiHandler.Handle(ticketController.Get))
             .WithName("GetTickets")
+            .WithOpenApi();
+        app.MapGet("/api/tickets/{ticketNumber}", ApiHandler.Handle(ticketController.GetByTicketNumber))
+            .WithName("GetByTicketNumber")
             .WithOpenApi();
         app.MapPost("/api/tickets", ApiHandler.Handle(ticketController.Create))
             .WithName("CreateTicket")
