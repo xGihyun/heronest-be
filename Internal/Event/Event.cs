@@ -31,6 +31,9 @@ public class CreateEventRequest
 
     [Column("image_url")]
     public string? ImageUrl { get; set; }
+
+    [Column("allow_visitors")]
+    public bool AllowVisitors { get; set; }
 }
 
 public class UpdateEventRequest : CreateEventRequest;
@@ -56,6 +59,9 @@ public class GetEventResponse
     [Column("image_url")]
     public string? ImageUrl { get; set; }
 
+    [Column("allow_visitors")]
+    public bool AllowVisitors { get; set; }
+
     [Column("venue_json")]
     [JsonIgnore]
     public string VenueJson { get; set; } = string.Empty;
@@ -72,7 +78,7 @@ public class GetEventFilter : PaginationResult
 
 public interface IEventRepository
 {
-    Task<GetEventResponse[]> Get(GetEventFilter pagination);
+    Task<GetEventResponse[]> Get(GetEventFilter filter);
     Task Create(CreateEventRequest data);
     Task Update(UpdateEventRequest data);
 }
@@ -97,6 +103,7 @@ public class EventRepository : IEventRepository
                 events.start_at, 
                 events.end_at,
                 events.image_url,
+                events.allow_visitors,
                 jsonb_build_object(
                     'venue_id', venues.venue_id,
                     'name', venues.name,
@@ -117,7 +124,7 @@ public class EventRepository : IEventRepository
         if (filter.VenueId.HasValue)
         {
             sql += " WHERE venues.venue_id = @VenueId";
-            parameters.Add("VenueId", filter.VenueId);
+            parameters.Add("VenueId", filter.VenueId.Value);
         }
 
         if (filter.Name is not null)
@@ -169,8 +176,8 @@ public class EventRepository : IEventRepository
     {
         var sql =
             @"
-            INSERT INTO events (name, description, start_at, end_at, venue_id, image_url)
-            VALUES (@Name, @Description, @StartAt, @EndAt, @VenueId, @ImageUrl)
+            INSERT INTO events (name, description, start_at, end_at, venue_id, image_url, allow_visitors)
+            VALUES (@Name, @Description, @StartAt, @EndAt, @VenueId, @ImageUrl, @AllowVisitors)
             ";
 
         await using var conn = await this.dataSource.OpenConnectionAsync();
@@ -187,7 +194,8 @@ public class EventRepository : IEventRepository
                 start_at = @StartAt, 
                 end_at = @EndAt, 
                 venue_id = @VenueId,
-                image_url = @ImageUrl
+                image_url = @ImageUrl,
+                allow_visitors = @AllowVisitors
             WHERE event_id = @EventId
             ";
 

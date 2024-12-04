@@ -38,7 +38,29 @@ public class TicketController
 
     public async Task<ApiResponse> Get(HttpContext context)
     {
-        var tickets = await this.repository.Get();
+        Guid? eventId = null;
+
+        if (context.Request.Query.TryGetValue("eventId", out var eventIdValue))
+        {
+            if (!Guid.TryParse(eventIdValue.ToString(), out var parsedEventId))
+            {
+                throw new ArgumentException("Invalid event ID.");
+            }
+
+            eventId = parsedEventId;
+        }
+
+        var pagination = new Pagination(context);
+        var paginationResult = pagination.Parse();
+
+        var tickets = await this.repository.Get(
+            new GetTicketFilter
+            {
+                Limit = paginationResult.Limit,
+                Page = paginationResult.Page,
+                EventId = eventId,
+            }
+        );
 
         return new ApiResponse
         {

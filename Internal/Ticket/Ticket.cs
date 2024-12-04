@@ -2,6 +2,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Dapper;
+using Heronest.Internal.Api;
 using Heronest.Internal.Database;
 using Heronest.Internal.Seat;
 using Heronest.Internal.User;
@@ -34,6 +35,11 @@ public class CreateTicketRequest
 }
 
 public class CreateTicketResponse : GetTicketResponse;
+
+public class GetTicketFilter : PaginationResult
+{
+    public Guid? EventId { get; set; }
+}
 
 /*public class CreateTicketResponse*/
 /*{*/
@@ -120,7 +126,7 @@ public class UpdateTicketRequest
 
 public interface ITicketRepository
 {
-    Task<GetTicketResponse[]> Get();
+    Task<GetTicketResponse[]> Get(GetTicketFilter filter);
     Task<GetTicketResponse> GetByTicketNumber(string ticketNumber);
     Task<GetTicketResponse[]> GetByUserId(Guid userId);
     Task<GetTicketResponse> GetByTicketId(
@@ -222,7 +228,7 @@ public class TicketRepository : ITicketRepository
         return ticket;
     }
 
-    public async Task<GetTicketResponse[]> Get()
+    public async Task<GetTicketResponse[]> Get(GetTicketFilter filter)
     {
         var sql =
             @"
@@ -260,11 +266,27 @@ public class TicketRepository : ITicketRepository
             JOIN events ON events.event_id = tickets.event_id
             JOIN seats ON seats.seat_id = tickets.seat_id
             JOIN venues ON venues.venue_id = events.venue_id
-            ORDER BY tickets.created_at DESC
             ";
 
+        var parameters = new DynamicParameters();
+
+        if (filter.EventId.HasValue)
+        {
+            sql += " WHERE tickets.event_id = @EventId";
+            parameters.Add("EventId", filter.EventId.Value);
+        }
+
+        sql += " ORDER BY tickets.created_at DESC";
+
+        if (filter.Page.HasValue && filter.Limit.HasValue)
+        {
+            sql += " OFFSET @Offset LIMIT @Limit";
+            parameters.Add("Offset", (filter.Page.Value - 1) * filter.Limit.Value);
+            parameters.Add("Limit", filter.Limit.Value);
+        }
+
         await using var conn = await this.dataSource.OpenConnectionAsync();
-        var ticketsResult = await conn.QueryAsync<GetTicketResponse>(sql);
+        var ticketsResult = await conn.QueryAsync<GetTicketResponse>(sql, parameters);
         var tickets = ticketsResult.Select(v =>
         {
             var options = new JsonSerializerOptions

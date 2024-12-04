@@ -26,6 +26,16 @@ public class AuthController
             };
         }
 
+        if (data.Role == Role.Student && !data.Email.EndsWith("@umak.edu.ph"))
+        {
+            return new ApiResponse
+            {
+                Status = ApiResponseStatus.Fail,
+                StatusCode = StatusCodes.Status400BadRequest,
+                Message = "Only UMak students are accepted.",
+            };
+        }
+
         try
         {
             await this.repository.Register(data);
