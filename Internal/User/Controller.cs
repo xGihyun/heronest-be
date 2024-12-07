@@ -1,16 +1,17 @@
 using Heronest.Internal.Api;
 using Heronest.Internal.Ticket;
+using Microsoft.AspNetCore.Mvc;
 
 namespace Heronest.Internal.User;
 
 public class UserController
 {
-    private readonly IUserRepository repository;
+    private readonly IUserRepository userRepository;
     private readonly ITicketRepository ticketRepository;
 
     public UserController(IUserRepository userRepository, ITicketRepository ticketRepository)
     {
-        this.repository = userRepository;
+        this.userRepository = userRepository;
         this.ticketRepository = ticketRepository;
     }
 
@@ -23,25 +24,33 @@ public class UserController
             name = nameValue.ToString();
         }
 
-        var pagination = new Pagination(context);
-        var paginationResult = pagination.Parse();
-
-        var users = await this.repository.Get(
-            new GetUserFilter
-            {
-                Limit = paginationResult.Limit,
-                Page = paginationResult.Page,
-                Name = name,
-            }
-        );
-
-        return new ApiResponse
+        try
         {
-            Status = ApiResponseStatus.Success,
-            StatusCode = StatusCodes.Status200OK,
-            Message = "Successfully fetched users.",
-            Data = users,
-        };
+            var pagination = new PaginationQuery(context);
+            var (offset, limit) = pagination.GetValues();
+
+            var filter = new GetUserFilter(name, offset, limit);
+            var users = await this.userRepository.GetMany(filter);
+
+            return new ApiResponse
+            {
+                Status = ApiResponseStatus.Success,
+                StatusCode = StatusCodes.Status200OK,
+                Message = "Successfully fetched users.",
+                Data = users,
+            };
+        }
+        catch (Exception ex)
+        {
+            return new ApiResponse
+            {
+                Status = ApiResponseStatus.Error,
+                StatusCode = StatusCodes.Status500InternalServerError,
+                Message = "Failed to get users.",
+                Data = new Person[] { },
+                Error = ex,
+            };
+        }
     }
 
     public async Task<ApiResponse> GetById(HttpContext context)
@@ -60,7 +69,17 @@ public class UserController
 
         try
         {
-            GetUserResponse user = await this.repository.GetById(userId);
+            GetUserResponse? user = await this.userRepository.GetById(userId);
+
+            if (user is null)
+            {
+                return new ApiResponse
+                {
+                    Status = ApiResponseStatus.Fail,
+                    StatusCode = StatusCodes.Status404NotFound,
+                    Message = "User not found.",
+                };
+            }
 
             return new ApiResponse
             {
@@ -74,9 +93,9 @@ public class UserController
         {
             return new ApiResponse
             {
-                Status = ApiResponseStatus.Fail,
-                StatusCode = StatusCodes.Status404NotFound,
-                Message = "User not found.",
+                Status = ApiResponseStatus.Error,
+                StatusCode = StatusCodes.Status500InternalServerError,
+                Message = "Failed to get user.",
                 Error = ex,
             };
         }
@@ -96,14 +115,26 @@ public class UserController
             };
         }
 
-        await this.repository.Create(data);
-
-        return new ApiResponse
+        try
         {
-            Status = ApiResponseStatus.Success,
-            StatusCode = StatusCodes.Status201Created,
-            Message = "Successfully created user.",
-        };
+            await this.userRepository.Create(data);
+
+            return new ApiResponse
+            {
+                Status = ApiResponseStatus.Success,
+                StatusCode = StatusCodes.Status201Created,
+                Message = "Successfully created user.",
+            };
+        }
+        catch
+        {
+            return new ApiResponse
+            {
+                Status = ApiResponseStatus.Error,
+                StatusCode = StatusCodes.Status500InternalServerError,
+                Message = "Failed to create user.",
+            };
+        }
     }
 
     public async Task<ApiResponse> Update(HttpContext context)
@@ -120,7 +151,7 @@ public class UserController
             };
         }
 
-        var data = await context.Request.ReadFromJsonAsync<UpdateUserRequest>();
+        var data = await context.Request.ReadFromJsonAsync<Person>();
 
         if (data is null)
         {
@@ -132,49 +163,26 @@ public class UserController
             };
         }
 
-        await this.repository.Update(data);
-
-        return new ApiResponse
+        try
         {
-            Status = ApiResponseStatus.Success,
-            StatusCode = StatusCodes.Status200OK,
-            Message = "Successfully updated user.",
-        };
-    }
+            await this.userRepository.Update(data);
 
-    public async Task<ApiResponse> CreateDetails(HttpContext context)
-    {
-        Guid userId;
-
-        if (!Guid.TryParse(context.GetRouteValue("userId")?.ToString(), out userId))
+            return new ApiResponse
+            {
+                Status = ApiResponseStatus.Success,
+                StatusCode = StatusCodes.Status200OK,
+                Message = "Successfully updated user.",
+            };
+        }
+        catch
         {
             return new ApiResponse
             {
-                Status = ApiResponseStatus.Fail,
-                StatusCode = StatusCodes.Status400BadRequest,
-                Message = "Invalid user ID.",
+                Status = ApiResponseStatus.Error,
+                StatusCode = StatusCodes.Status500InternalServerError,
+                Message = "Failed to update user.",
             };
         }
-
-        var data = await context.Request.ReadFromJsonAsync<UserDetailRequest>();
-
-        if (data is null || data.UserId != userId)
-        {
-            return new ApiResponse
-            {
-                Status = ApiResponseStatus.Fail,
-                StatusCode = StatusCodes.Status400BadRequest,
-            };
-        }
-
-        await this.repository.CreateDetails(data);
-
-        return new ApiResponse
-        {
-            Status = ApiResponseStatus.Success,
-            StatusCode = StatusCodes.Status201Created,
-            Message = "Successfully created user details.",
-        };
     }
 
     public async Task<ApiResponse> GetTickets(HttpContext context)

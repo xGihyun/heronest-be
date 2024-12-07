@@ -33,12 +33,19 @@ public class ApiHandler
             {
                 var response = await handler(context);
 
+                if (response.Error is not null)
+                {
+                    response.Message = $"{response.Message} - {response.Error.Message}";
+                    return Results.Json(response, statusCode: response.StatusCode);
+                }
+
                 Console.WriteLine(response.Message);
 
                 return Results.Json(response, statusCode: response.StatusCode);
             }
             catch (Exception ex)
             {
+                // TODO: I probably don't need this.
                 var response = new ApiResponse
                 {
                     Status = ApiResponseStatus.Error,
@@ -46,7 +53,7 @@ public class ApiHandler
                     Message = ex.Message,
                 };
 
-                Console.WriteLine("Unhandled: ", response.Message);
+                Console.WriteLine("Unhandled: ", ex);
 
                 return Results.Json(response, statusCode: response.StatusCode);
             }

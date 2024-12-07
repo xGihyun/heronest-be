@@ -69,7 +69,7 @@ public class SeatReservedBy
     public string UserJson { get; set; } = string.Empty;
 
     [Column("user")]
-    public UserDetailRequest User { get; set; } = new UserDetailRequest();
+    public Person User { get; set; }
 
     [Column("event_json")]
     [JsonIgnore]

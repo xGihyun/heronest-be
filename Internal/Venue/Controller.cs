@@ -83,31 +83,31 @@ public class VenueController
 
     public async Task<ApiResponse> Get(HttpContext context)
     {
-        string? name = null;
-
-        if (context.Request.Query.TryGetValue("name", out var nameValue))
-        {
-            name = nameValue.ToString();
-        }
-
-        var pagination = new Pagination(context);
-        var paginationResult = pagination.Parse();
-
-        var venues = await this.repository.Get(
-            new GetVenueFilter
-            {
-                Limit = paginationResult.Limit,
-                Page = paginationResult.Page,
-                Name = name,
-            }
-        );
+        /*string? name = null;*/
+        /**/
+        /*if (context.Request.Query.TryGetValue("name", out var nameValue))*/
+        /*{*/
+        /*    name = nameValue.ToString();*/
+        /*}*/
+        /**/
+        /*var pagination = new Pagination(context);*/
+        /*var paginationResult = pagination.Parse();*/
+        /**/
+        /*var venues = await this.repository.Get(*/
+        /*    new GetVenueFilter*/
+        /*    {*/
+        /*        Limit = paginationResult.Limit,*/
+        /*        Page = paginationResult.Page,*/
+        /*        Name = name,*/
+        /*    }*/
+        /*);*/
 
         return new ApiResponse
         {
             Status = ApiResponseStatus.Success,
             StatusCode = StatusCodes.Status200OK,
             Message = "Successfully fetched venues.",
-            Data = venues,
+            /*Data = venues,*/
         };
     }
 }

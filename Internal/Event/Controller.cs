@@ -32,25 +32,25 @@ public class EventController
             name = nameValue.ToString();
         }
 
-        var pagination = new Pagination(context);
-        var paginationResult = pagination.Parse();
-
-        var events = await this.repository.Get(
-            new GetEventFilter
-            {
-                Limit = paginationResult.Limit,
-                Page = paginationResult.Page,
-                VenueId = venueId,
-                Name = name
-            }
-        );
-
+        /*var pagination = new Pagination(context);*/
+        /*var paginationResult = pagination.Parse();*/
+        /**/
+        /*var events = await this.repository.Get(*/
+        /*    new GetEventFilter*/
+        /*    {*/
+        /*        Limit = paginationResult.Limit,*/
+        /*        Page = paginationResult.Page,*/
+        /*        VenueId = venueId,*/
+        /*        Name = name*/
+        /*    }*/
+        /*);*/
+        /**/
         return new ApiResponse
         {
             Status = ApiResponseStatus.Success,
             StatusCode = StatusCodes.Status200OK,
             Message = "Successfully fetched events.",
-            Data = events,
+            /*Data = events,*/
         };
     }
 

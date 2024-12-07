@@ -1,5 +1,4 @@
 using Heronest.Internal.Api;
-using Heronest.Internal.User;
 
 namespace Heronest.Internal.Auth;
 
@@ -14,7 +13,21 @@ public class AuthController
 
     public async Task<ApiResponse> Register(HttpContext context)
     {
-        var data = await context.Request.ReadFromJsonAsync<RegisterRequest>();
+        CreateUserRequest? data = null;
+
+        try
+        {
+            data = await context.Request.ReadFromJsonAsync<CreateUserRequest>();
+        }
+        catch
+        {
+            return new ApiResponse
+            {
+                Status = ApiResponseStatus.Fail,
+                StatusCode = StatusCodes.Status400BadRequest,
+                Message = "Invalid JSON format.",
+            };
+        }
 
         if (data is null)
         {
@@ -22,7 +35,7 @@ public class AuthController
             {
                 Status = ApiResponseStatus.Fail,
                 StatusCode = StatusCodes.Status400BadRequest,
-                Message = "Invalid JSON request.",
+                Message = "JSON body cannot be empty.",
             };
         }
 
@@ -47,13 +60,14 @@ public class AuthController
                 Message = "Successfully registered.",
             };
         }
-        catch
+        catch(Exception ex)
         {
             return new ApiResponse
             {
                 Status = ApiResponseStatus.Error,
                 StatusCode = StatusCodes.Status500InternalServerError,
                 Message = "Server error during registration.",
+                Error = ex
             };
         }
     }
@@ -74,7 +88,17 @@ public class AuthController
 
         try
         {
-            GetUserResponse user = await this.repository.Login(data);
+            Person? user = await this.repository.Login(data);
+
+            if (user is null)
+            {
+                return new ApiResponse
+                {
+                    Status = ApiResponseStatus.Fail,
+                    StatusCode = StatusCodes.Status404NotFound,
+                    Message = "User with the given credentials not found.",
+                };
+            }
 
             return new ApiResponse
             {
@@ -88,9 +112,9 @@ public class AuthController
         {
             return new ApiResponse
             {
-                Status = ApiResponseStatus.Fail,
-                StatusCode = StatusCodes.Status404NotFound,
-                Message = "User with the given credentials not found.",
+                Status = ApiResponseStatus.Error,
+                StatusCode = StatusCodes.Status500InternalServerError,
+                Message = "Failed to login.",
             };
         }
     }

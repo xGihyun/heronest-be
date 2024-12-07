@@ -50,24 +50,24 @@ public class TicketController
             eventId = parsedEventId;
         }
 
-        var pagination = new Pagination(context);
-        var paginationResult = pagination.Parse();
-
-        var tickets = await this.repository.Get(
-            new GetTicketFilter
-            {
-                Limit = paginationResult.Limit,
-                Page = paginationResult.Page,
-                EventId = eventId,
-            }
-        );
+        /*var pagination = new Pagination(context);*/
+        /*var paginationResult = pagination.Parse();*/
+        /**/
+        /*var tickets = await this.repository.Get(*/
+        /*    new GetTicketFilter*/
+        /*    {*/
+        /*        Limit = paginationResult.Limit,*/
+        /*        Page = paginationResult.Page,*/
+        /*        EventId = eventId,*/
+        /*    }*/
+        /*);*/
 
         return new ApiResponse
         {
             Status = ApiResponseStatus.Success,
             StatusCode = StatusCodes.Status200OK,
             Message = "Successfully fetched tickets.",
-            Data = tickets,
+            Data = new GetTicketResponse[]{},
         };
     }
 

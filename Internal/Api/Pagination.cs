@@ -1,42 +1,55 @@
 namespace Heronest.Internal.Api;
 
-public class PaginationResult
+public class PaginationQuery
 {
-    public int? Page { get; set; }
-    public int? Limit { get; set; }
-}
+    public int? Page { get; private set; }
+    public int? Limit { get; private set; }
 
-public class Pagination
-{
-    HttpContext context;
-
-    public Pagination(HttpContext context)
+    public PaginationQuery(HttpContext context)
     {
-        this.context = context;
+        this.ParseQueryParameters(context.Request.Query);
     }
 
-    public PaginationResult Parse()
+    private void ParseQueryParameters(IQueryCollection query)
     {
-        var result = new PaginationResult();
-
-        if (this.context.Request.Query.TryGetValue("page", out var pageValue))
+        if (query.TryGetValue("page", out var pageValue))
         {
-            if (!int.TryParse(pageValue.ToString(), out int parsedPage))
+            if (!int.TryParse(pageValue.ToString(), out int parsedPage) || parsedPage < 1)
             {
-                throw new ArgumentException("Invalid page query.");
+                throw new ArgumentException(
+                    "The 'page' query parameter must be a positive integer."
+                );
             }
-            result.Page = parsedPage;
+            Page = parsedPage;
         }
 
-        if (this.context.Request.Query.TryGetValue("limit", out var limitValue))
+        if (query.TryGetValue("limit", out var limitValue))
         {
-            if (!int.TryParse(limitValue.ToString(), out int parsedLimit))
+            if (!int.TryParse(limitValue.ToString(), out int parsedLimit) || parsedLimit < 1)
             {
-                throw new ArgumentException("Invalid limit query.");
+                throw new ArgumentException(
+                    "The 'limit' query parameter must be a positive integer."
+                );
             }
-            result.Limit = parsedLimit;
+            Limit = parsedLimit;
+        }
+    }
+
+    public (int Offset, int Limit) GetValues(int defaultLimit = 10)
+    {
+        int limit = Limit ?? defaultLimit;
+        int page = Page ?? 1;
+
+        if (limit <= 0)
+        {
+            throw new ArgumentException("The 'limit' value must be greater than zero.");
         }
 
-        return result;
+        if (page <= 0)
+        {
+            throw new ArgumentException("The 'page' value must be greater than zero.");
+        }
+
+        return ((page - 1) * limit, limit);
     }
 }

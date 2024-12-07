@@ -16,7 +16,7 @@ namespace Heronest;
 
 public class Program
 {
-    public static void Main(string[] args)
+    public async static Task Main(string[] args)
     {
         // TODO: Put this in Configuration
         var connectionString =
@@ -27,8 +27,7 @@ public class Program
         dataSourceBuilder.MapEnum<Sex>();
         dataSourceBuilder.MapEnum<SeatStatus>();
 
-        var dataSource = dataSourceBuilder.Build();
-        /*var conn = await dataSource.OpenConnectionAsync();*/
+        await using var dataSource = dataSourceBuilder.Build();
 
         var builder = WebApplication.CreateBuilder(args);
 
@@ -75,7 +74,6 @@ public class Program
         app.UseHttpsRedirection();
         app.UseAuthorization();
 
-
         var ticketRepository = new TicketRepository(dataSource);
         var ticketController = new TicketController(ticketRepository);
 
@@ -96,9 +94,6 @@ public class Program
             .WithOpenApi();
         app.MapPost("/api/users", ApiHandler.Handle(userController.Create))
             .WithName("CreateUser")
-            .WithOpenApi();
-        app.MapPost("/api/users/{userId}/details", ApiHandler.Handle(userController.CreateDetails))
-            .WithName("CreateUserDetail")
             .WithOpenApi();
 
         var authController = new AuthController(new AuthRepository(dataSource, userRepository));
@@ -125,7 +120,10 @@ public class Program
         app.MapGet("/api/tickets", ApiHandler.Handle(ticketController.Get))
             .WithName("GetTickets")
             .WithOpenApi();
-        app.MapGet("/api/tickets/{ticketNumber}", ApiHandler.Handle(ticketController.GetByTicketNumber))
+        app.MapGet(
+                "/api/tickets/{ticketNumber}",
+                ApiHandler.Handle(ticketController.GetByTicketNumber)
+            )
             .WithName("GetByTicketNumber")
             .WithOpenApi();
         app.MapPost("/api/tickets", ApiHandler.Handle(ticketController.Create))

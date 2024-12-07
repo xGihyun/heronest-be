@@ -29,7 +29,7 @@ public class CreateVenueRequest
 
 public class UpdateVenueRequest : CreateVenueRequest;
 
-public class GetVenueFilter : PaginationResult
+public class GetVenueFilter  
 {
     public string? Name { get; set; }
 }
@@ -55,34 +55,35 @@ public class VenueRepository : IVenueRepository
 
     public async Task<GetVenueResponse[]> Get(GetVenueFilter filter)
     {
-        var sql =
-            @"
-            SELECT venue_id, name, description, capacity, location, image_url
-            FROM venues
-            ";
-
-        var parameters = new DynamicParameters();
-
-        if (filter.Name is not null)
-        {
-            sql +=
-                @" 
-                WHERE name ILIKE @Name
-                ";
-            parameters.Add("Name", $"%{filter.Name}%");
-        }
-
-        if (filter.Page.HasValue && filter.Limit.HasValue)
-        {
-            sql += " OFFSET @Offset LIMIT @Limit";
-            parameters.Add("Offset", (filter.Page.Value - 1) * filter.Limit.Value);
-            parameters.Add("Limit", filter.Limit.Value);
-        }
-
-        await using var conn = await this.dataSource.OpenConnectionAsync();
-        var venues = await conn.QueryAsync<GetVenueResponse>(sql, parameters);
-
-        return venues.ToArray();
+        return new GetVenueResponse[]{};
+        /*var sql =*/
+        /*    @"*/
+        /*    SELECT venue_id, name, description, capacity, location, image_url*/
+        /*    FROM venues*/
+        /*    ";*/
+        /**/
+        /*var parameters = new DynamicParameters();*/
+        /**/
+        /*if (filter.Name is not null)*/
+        /*{*/
+        /*    sql +=*/
+        /*        @" */
+        /*        WHERE name ILIKE @Name*/
+        /*        ";*/
+        /*    parameters.Add("Name", $"%{filter.Name}%");*/
+        /*}*/
+        /**/
+        /*if (filter.Page.HasValue && filter.Limit.HasValue)*/
+        /*{*/
+        /*    sql += " OFFSET @Offset LIMIT @Limit";*/
+        /*    parameters.Add("Offset", (filter.Page.Value - 1) * filter.Limit.Value);*/
+        /*    parameters.Add("Limit", filter.Limit.Value);*/
+        /*}*/
+        /**/
+        /*await using var conn = await this.dataSource.OpenConnectionAsync();*/
+        /*var venues = await conn.QueryAsync<GetVenueResponse>(sql, parameters);*/
+        /**/
+        /*return venues.ToArray();*/
     }
 
     public async Task Create(CreateVenueRequest data)
