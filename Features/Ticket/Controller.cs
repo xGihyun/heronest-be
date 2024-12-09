@@ -189,4 +189,41 @@ public class TicketController
             };
         }
     }
+
+    public async Task<ApiResponse> GeneratePdf(HttpContext context)
+    {
+        var data = await context.Request.ReadFromJsonAsync<Ticket>();
+
+        if (data is null)
+        {
+            return new ApiResponse
+            {
+                Status = ApiResponseStatus.Fail,
+                StatusCode = StatusCodes.Status400BadRequest,
+                Message = "Invalid JSON request.",
+            };
+        }
+
+        try
+        {
+            this.repository.GeneratePdf(data);
+
+            return new ApiResponse
+            {
+                Status = ApiResponseStatus.Success,
+                StatusCode = StatusCodes.Status201Created,
+                Message = "Successfully generated ticket PDF.",
+            };
+        }
+        catch (Exception ex)
+        {
+            return new ApiResponse
+            {
+                Status = ApiResponseStatus.Error,
+                StatusCode = StatusCodes.Status500InternalServerError,
+                Message = "Failed to create ticket PDF.",
+                Error = ex,
+            };
+        }
+    }
 }

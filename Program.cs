@@ -112,6 +112,12 @@ public class Program
             )
             .WithName("GetByTicketNumber")
             .WithOpenApi();
+        app.MapPost(
+                "/api/tickets/{ticketNumber}/pdf",
+                ApiHandler.Handle(ticketController.GeneratePdf)
+            )
+            .WithName("GenerateTicketPdf")
+            .WithOpenApi();
         app.MapPost("/api/tickets", ApiHandler.Handle(ticketController.Create))
             .WithName("CreateTicket")
             .WithOpenApi();

@@ -2,10 +2,21 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Dapper;
 using DapperQueryBuilder;
+using iText.IO.Image;
+using iText.Kernel.Colors;
+using iText.Kernel.Font;
+using iText.Kernel.Pdf;
+using iText.Layout;
+using iText.Layout.Element;
 using NanoidDotNet;
 using Npgsql;
+using QRCoder;
 
 namespace Heronest.Features.Ticket;
+
+using Color = System.Drawing.Color;
+using Path = System.IO.Path;
+using PdfRectangle = iText.Kernel.Geom.Rectangle;
 
 public interface ITicketRepository
 {
@@ -13,6 +24,7 @@ public interface ITicketRepository
     Task<Ticket?> GetByTicketNumber(string ticketNumber);
     Task<Ticket> Create(CreateTicketRequest data);
     Task Update(UpdateTicketRequest data);
+    void GeneratePdf(Ticket ticket);
 }
 
 public class TicketRepository : ITicketRepository
@@ -161,8 +173,6 @@ public class TicketRepository : ITicketRepository
         return tickets.ToArray();
     }
 
-    // TODO:
-    // If `transaction` is `null`, begin its own transaction.
     public async Task<Ticket> Create(CreateTicketRequest data)
     {
         await using var conn = await this.dataSource.OpenConnectionAsync();
@@ -191,6 +201,8 @@ public class TicketRepository : ITicketRepository
             throw new Exception("Ticket is null after creation.");
         }
 
+        this.GeneratePdf(ticket);
+
         return ticket;
     }
 
@@ -207,5 +219,194 @@ public class TicketRepository : ITicketRepository
         );
 
         await sql.ExecuteAsync();
+    }
+
+    public void GeneratePdf(Ticket ticket)
+    {
+        // NOTE: These paths should be in a configuration
+        string templatePath = "/home/gihyun/Development/svelte/heronest/static/ticket-template.pdf";
+        string outputPath = Path.Combine(
+            "/home/gihyun/Development/svelte/heronest/static/storage/tickets",
+            $"Ticket-{ticket.TicketNumber}.pdf"
+        );
+
+        using (PdfReader reader = new PdfReader(templatePath))
+        using (PdfWriter writer = new PdfWriter(outputPath))
+        using (PdfDocument pdfDoc = new PdfDocument(reader, writer))
+        {
+            var page = pdfDoc.GetFirstPage();
+            var pdfCanvas = new iText.Kernel.Pdf.Canvas.PdfCanvas(page);
+            var document = new Document(pdfDoc);
+
+            var font = PdfFontFactory.CreateFont(iText.IO.Font.Constants.StandardFonts.HELVETICA);
+            var boldFont = PdfFontFactory.CreateFont(
+                iText.IO.Font.Constants.StandardFonts.HELVETICA_BOLD
+            );
+
+            var darkBlue = new DeviceRgb(28, 33, 87);
+            var yellow = new DeviceRgb(255, 247, 87);
+
+            PdfRectangle pageSize = page.GetPageSize();
+
+            // Marshal's copy details
+            float xRight = pageSize.GetWidth() - 52;
+            AddRotatedText(
+                document,
+                $"{ticket.Reservation.User.FirstName} {ticket.Reservation.User.LastName}",
+                xRight,
+                50,
+                90,
+                8,
+                font,
+                darkBlue
+            );
+            AddRotatedText(document, ticket.TicketNumber, xRight + 12, 62, 90, 8, font, darkBlue);
+            AddRotatedText(
+                document,
+                ticket.Reservation.Seat.SeatNumber,
+                xRight + 24,
+                56,
+                90,
+                8,
+                font,
+                darkBlue
+            );
+            AddRotatedText(
+                document,
+                ticket.Reservation.Event.Name,
+                xRight + 36,
+                56,
+                90,
+                8,
+                font,
+                darkBlue
+            );
+            AddRotatedText(
+                document,
+                ticket.Reservation.Venue.Name,
+                xRight + 48,
+                56,
+                90,
+                8,
+                font,
+                darkBlue
+            );
+
+            // Main details
+            float eventNameWidth = boldFont.GetWidth(ticket.Reservation.Event.Name, 20);
+
+            document.Add(
+                new Paragraph(ticket.Reservation.Event.Name)
+                    .SetFont(boldFont)
+                    .SetFontSize(20)
+                    .SetFontColor(darkBlue)
+                    .SetFixedPosition(
+                        pageSize.GetWidth() / 2 - 20 - eventNameWidth,
+                        pageSize.GetHeight() / 2 + 20,
+                        200
+                    )
+            );
+
+            float venueNameWidth = font.GetWidth(ticket.Reservation.Venue.Name, 12);
+
+            document.Add(
+                new Paragraph(ticket.Reservation.Venue.Name)
+                    .SetFont(font)
+                    .SetFontSize(12)
+                    .SetFontColor(yellow)
+                    .SetFixedPosition(pageSize.GetWidth() - 110 - venueNameWidth, 20, 200)
+            );
+
+            float ticketNumberWidth = boldFont.GetWidth(ticket.TicketNumber, 16);
+
+            document.Add(
+                new Paragraph(ticket.TicketNumber)
+                    .SetFont(boldFont)
+                    .SetFontSize(16)
+                    .SetFontColor(yellow)
+                    .SetFixedPosition(
+                        pageSize.GetWidth() - 110 - ticketNumberWidth,
+                        pageSize.GetHeight() - 44,
+                        200
+                    )
+            );
+
+            // User details
+            float xName = 195;
+            float yName = 84;
+            document.Add(
+                new Paragraph(
+                    $"{ticket.Reservation.User.FirstName} {ticket.Reservation.User.LastName}"
+                )
+                    .SetFont(font)
+                    .SetFontSize(12)
+                    .SetFontColor(ColorConstants.WHITE)
+                    .SetFixedPosition(xName, yName, 200)
+            );
+
+            document.Add(
+                new Paragraph(ticket.Reservation.Seat.SeatNumber)
+                    .SetFont(font)
+                    .SetFontSize(12)
+                    .SetFontColor(ColorConstants.WHITE)
+                    .SetFixedPosition(xName, yName - 17, 200)
+            );
+
+            string eventDate =
+                $"{ticket.Reservation.Event.StartAt:MMM dd, yyyy} - {ticket.Reservation.Event.EndAt:MMM dd, yyyy}";
+            document.Add(
+                new Paragraph(eventDate)
+                    .SetFont(font)
+                    .SetFontSize(12)
+                    .SetFontColor(ColorConstants.WHITE)
+                    .SetFixedPosition(xName, yName - 17 * 2, 200)
+            );
+
+            string eventTime =
+                $"{ticket.Reservation.Event.StartAt:hh:mm tt} - {ticket.Reservation.Event.EndAt:hh:mm tt}";
+            document.Add(
+                new Paragraph(eventTime)
+                    .SetFont(font)
+                    .SetFontSize(12)
+                    .SetFontColor(ColorConstants.WHITE)
+                    .SetFixedPosition(xName, yName - 17 * 3, 200)
+            );
+
+            // QR Code
+            var qrGenerator = new QRCodeGenerator();
+            var qrData = qrGenerator.CreateQrCode(ticket.TicketNumber, QRCodeGenerator.ECCLevel.Q);
+            var qrCode = new PngByteQRCode(qrData);
+            byte[] qrBytes = qrCode.GetGraphic(
+                20,
+                darkColor: Color.FromArgb(255, 255, 255),
+                lightColor: Color.FromArgb(0, 0, 0, 0)
+            );
+
+            var qrImage = ImageDataFactory.Create(qrBytes);
+            document.Add(
+                new iText.Layout.Element.Image(qrImage)
+                    .SetFixedPosition(8, 16)
+                    .ScaleAbsolute(100, 100)
+            );
+        }
+    }
+
+    static void AddRotatedText(
+        Document document,
+        string text,
+        float x,
+        float y,
+        float angle,
+        float fontSize,
+        PdfFont font,
+        DeviceRgb color
+    )
+    {
+        Paragraph paragraph = new Paragraph(text)
+            .SetFont(font)
+            .SetFontSize(fontSize)
+            .SetFontColor(color)
+            .SetRotationAngle(Math.PI * angle / 180);
+        document.Add(paragraph.SetFixedPosition(x, y, 200));
     }
 }

@@ -35,6 +35,7 @@ public class ApiHandler
 
                 if (response.Error is not null)
                 {
+                    Console.WriteLine(response.Error);
                     response.Status = ApiResponseStatus.Error;
                     response.Message = $"{response.Message} - {response.Error.Message}";
                     return Results.Json(response, statusCode: response.StatusCode);
