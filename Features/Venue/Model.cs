@@ -18,9 +18,19 @@ public record Venue
     [Column("location")]
     public string Location { get; set; } = string.Empty;
 
+    [Column("capacity")]
+    public int Capacity { get; set; }
+
     [Column("image_url")]
     public string? ImageUrl { get; set; }
 };
+
+public record CreateVenueRequest(
+    string Name,
+    string Location,
+    string? ImageUrl,
+    string? Description
+);
 
 public record GetVenueFilter(int? Offset, int? Limit, string? Name);
 

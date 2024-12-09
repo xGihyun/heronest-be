@@ -28,11 +28,6 @@ public class SeatController
 
         Guid? eventId = QueryParameter.TryGetValueFromStruct<Guid>(context, "eventId");
 
-        if (!eventId.HasValue)
-        {
-            throw new ArgumentException("Invalid event ID.");
-        }
-
         try
         {
             var filter = new GetSeatFilter(eventId);

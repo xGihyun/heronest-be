@@ -88,7 +88,7 @@ public class AuthController
 
         try
         {
-            Person? user = await this.repository.Login(data);
+            GetUserResponse? user = await this.repository.Login(data);
 
             if (user is null)
             {

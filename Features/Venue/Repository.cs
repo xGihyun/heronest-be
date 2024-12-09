@@ -7,7 +7,7 @@ namespace Heronest.Features.Venue;
 public interface IVenueRepository
 {
     Task<Venue[]> GetMany(GetVenueFilter filter);
-    Task Create(Venue data);
+    Task Create(CreateVenueRequest data);
     Task Update(Venue data);
 }
 
@@ -26,8 +26,15 @@ public class VenueRepository : IVenueRepository
 
         var sql = conn.QueryBuilder(
             $@"
-            SELECT venue_id, name, description, location, image_url
+            SELECT 
+                venues.venue_id, 
+                venues.name, 
+                venues.description, 
+                venues.location, 
+                venues.image_url,
+                COUNT(seats.seat_id) AS capacity
             FROM venues
+            LEFT JOIN seats ON seats.venue_id = venues.venue_id
             WHERE 1=1
             "
         );
@@ -41,6 +48,8 @@ public class VenueRepository : IVenueRepository
             /*sql += $"AND name ILIKE {$"%{filter.Name}%"}";*/
         }
 
+        sql += $"GROUP BY venues.venue_id";
+
         if (filter.Offset.HasValue && filter.Limit.HasValue)
         {
             sql += $"OFFSET {filter.Offset.Value} LIMIT {filter.Limit.Value}";
@@ -51,7 +60,7 @@ public class VenueRepository : IVenueRepository
         return venues.ToArray();
     }
 
-    public async Task Create(Venue data)
+    public async Task Create(CreateVenueRequest data)
     {
         await using var conn = await this.dataSource.OpenConnectionAsync();
 

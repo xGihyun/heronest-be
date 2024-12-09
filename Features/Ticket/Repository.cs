@@ -10,16 +10,8 @@ namespace Heronest.Features.Ticket;
 public interface ITicketRepository
 {
     Task<Ticket[]> GetMany(GetTicketFilter filter);
-    Task<Ticket?> GetByTicketNumber(
-        string ticketNumber,
-        NpgsqlConnection? connection = null,
-        NpgsqlTransaction? transaction = null
-    );
-    Task<Ticket> Create(
-        CreateTicketRequest data,
-        NpgsqlConnection? connection = null,
-        NpgsqlTransaction? transaction = null
-    );
+    Task<Ticket?> GetByTicketNumber(string ticketNumber);
+    Task<Ticket> Create(CreateTicketRequest data);
     Task Update(UpdateTicketRequest data);
 }
 
@@ -32,15 +24,9 @@ public class TicketRepository : ITicketRepository
         this.dataSource = dataSource;
     }
 
-    public async Task<Ticket?> GetByTicketNumber(
-        string ticketNumber,
-        NpgsqlConnection? connection = null,
-        NpgsqlTransaction? transaction = null
-    )
+    public async Task<Ticket?> GetByTicketNumber(string ticketNumber)
     {
-        await using var conn = connection is null
-            ? await this.dataSource.OpenConnectionAsync()
-            : connection;
+        await using var conn = await this.dataSource.OpenConnectionAsync();
 
         var sql = conn.QueryBuilder(
             $@"
@@ -80,7 +66,7 @@ public class TicketRepository : ITicketRepository
             "
         );
 
-        var ticket = await sql.QueryFirstOrDefaultAsync<Ticket>(transaction: transaction);
+        var ticket = await sql.QueryFirstOrDefaultAsync<Ticket>();
 
         var options = new JsonSerializerOptions
         {
@@ -175,17 +161,11 @@ public class TicketRepository : ITicketRepository
         return tickets.ToArray();
     }
 
-    // TODO: 
+    // TODO:
     // If `transaction` is `null`, begin its own transaction.
-    public async Task<Ticket> Create(
-        CreateTicketRequest data,
-        NpgsqlConnection? connection = null,
-        NpgsqlTransaction? transaction = null
-    )
+    public async Task<Ticket> Create(CreateTicketRequest data)
     {
-        await using var conn = connection is null
-            ? await this.dataSource.OpenConnectionAsync()
-            : connection;
+        await using var conn = await this.dataSource.OpenConnectionAsync();
 
         var ticketNumber = Nanoid.Generate("0123456789ABCDEF", 6);
 
@@ -202,9 +182,9 @@ public class TicketRepository : ITicketRepository
             "
         );
 
-        await sql.ExecuteAsync(transaction: transaction);
+        await sql.ExecuteAsync();
 
-        var ticket = await this.GetByTicketNumber(ticketNumber, connection, transaction);
+        var ticket = await this.GetByTicketNumber(ticketNumber);
 
         if (ticket is null)
         {

@@ -56,17 +56,25 @@ public class SeatRepository : ISeatRepository
                             )
                         )
                     ELSE NULL
-                END AS reserved_by_json
+                END AS reservation_json
             FROM seats
             LEFT JOIN tickets 
                 ON tickets.seat_id = seats.seat_id  
-                AND tickets.event_id = {filter.EventId}
+            "
+        );
+
+        if (filter.EventId.HasValue)
+        {
+            sql += $"AND tickets.event_id = {filter.EventId}";
+        }
+
+        sql +=
+            $@"
             LEFT JOIN users ON users.user_id = tickets.user_id
             LEFT JOIN events ON events.event_id = tickets.event_id
             WHERE seats.venue_id = {venueId} 
             ORDER BY seats.seat_number::int
-            "
-        );
+        ";
 
         var seats = await sql.QueryAsync<Seat>();
 
@@ -125,9 +133,7 @@ public class SeatRepository : ISeatRepository
                     data.Reservation.UserId,
                     data.SeatId,
                     data.Reservation.EventId
-                ),
-                conn,
-                transaction
+                )
             );
         }
 
@@ -143,7 +149,16 @@ public class SeatRepository : ISeatRepository
         {
             foreach (var seat in data)
             {
-                var metadataJson = JsonSerializer.Serialize(seat.Metadata);
+                string metadataJson;
+                if (seat.Metadata is JsonElement jsonElement)
+                {
+                    metadataJson = jsonElement.ToString();
+                }
+                else
+                {
+                    Console.WriteLine("Seat.Metadata is not a JsonElement.");
+                    metadataJson = JsonSerializer.Serialize(seat.Metadata);
+                }
 
                 var sql = conn.QueryBuilder(
                     $@"
@@ -172,9 +187,7 @@ public class SeatRepository : ISeatRepository
                             seat.Reservation.UserId,
                             seat.SeatId,
                             seat.Reservation.EventId
-                        ),
-                        conn,
-                        transaction
+                        )
                     );
                 }
             }

@@ -15,7 +15,7 @@ public class ApiResponse
     public ApiResponseStatus Status { get; set; }
     public object? Data { get; set; }
     public int StatusCode { get; set; }
-    public string? Message { get; set; }
+    public string Message { get; set; } = string.Empty;
 
     [JsonIgnore]
     public Exception? Error { get; set; }

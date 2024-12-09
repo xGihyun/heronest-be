@@ -8,7 +8,7 @@ namespace Heronest.Features.Auth;
 public interface IAuthRepository
 {
     Task Register(CreateUserRequest data);
-    Task<Person?> Login(LoginRequest data);
+    Task<GetUserResponse?> Login(LoginRequest data);
 }
 
 public class AuthRepository : IAuthRepository
@@ -27,20 +27,28 @@ public class AuthRepository : IAuthRepository
         await this.userRepository.Create(data);
     }
 
-    public async Task<Person?> Login(LoginRequest data)
+    public async Task<GetUserResponse?> Login(LoginRequest data)
     {
         await using var conn = await this.dataSource.OpenConnectionAsync();
 
         var sql = conn.QueryBuilder(
             $@"
             SELECT 
-                user_id, email, role, first_name, middle_name, last_name, birth_date, sex
+                user_id, 
+                email, 
+                role, 
+                first_name, 
+                middle_name, 
+                last_name, 
+                birth_date, 
+                sex,
+                avatar_url
             FROM users
             WHERE email = ({data.Email}) AND password = ({data.Password})
             "
         );
 
-        var user = await sql.QuerySingleAsync<Person>();
+        var user = await sql.QuerySingleAsync<GetUserResponse>();
 
         return user;
     }

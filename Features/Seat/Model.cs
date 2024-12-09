@@ -35,6 +35,7 @@ public record Seat
     public SeatReservation? Reservation { get; set; }
 
     [JsonIgnore]
+    [Column("reservation_json")]
     public string? ReservationJson { get; set; }
 }
 

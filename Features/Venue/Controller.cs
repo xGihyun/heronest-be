@@ -45,7 +45,7 @@ public class VenueController
 
     public async Task<ApiResponse> Create(HttpContext context)
     {
-        var data = await context.Request.ReadFromJsonAsync<Venue>();
+        var data = await context.Request.ReadFromJsonAsync<CreateVenueRequest>();
 
         if (data is null)
         {
