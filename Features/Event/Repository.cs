@@ -30,6 +30,20 @@ public class EventRepository : IEventRepository
 
         var sql = conn.QueryBuilder(
             $@"
+            WITH venue_capacity AS (
+                SELECT 
+                    venue_id,
+                    COUNT(seat_id) AS capacity
+                FROM seats
+                GROUP BY venue_id
+            ),
+            event_reservations AS (
+                SELECT 
+                    event_id,
+                    COUNT(ticket_id) AS total_reservation
+                FROM tickets
+                GROUP BY event_id
+            )
             SELECT 
                 events.event_id, 
                 events.name, 
@@ -43,10 +57,14 @@ public class EventRepository : IEventRepository
                     'name', venues.name,
                     'description', venues.description,
                     'location', venues.location,
-                    'image_url', venues.image_url
-                ) AS venue_json
+                    'image_url', venues.image_url,
+                    'capacity', COALESCE(vc.capacity, 0)
+                ) AS venue_json,
+                COALESCE(er.total_reservation, 0) AS total_reservation
             FROM events
             JOIN venues ON venues.venue_id = events.venue_id
+            LEFT JOIN venue_capacity vc ON vc.venue_id = venues.venue_id
+            LEFT JOIN event_reservations er ON er.event_id = events.event_id
             WHERE 1=1
             "
         );
@@ -58,9 +76,10 @@ public class EventRepository : IEventRepository
 
         if (filter.Name is not null)
         {
-            sql += $@"AND events.name ILIKE {filter.Name}";
+            sql += $@"AND events.name ILIKE {$"%{filter.Name}%"}";
         }
 
+        sql += $"GROUP BY events.event_id, venues.venue_id, vc.capacity, er.total_reservation";
         sql += $"ORDER BY events.start_at";
 
         if (filter.Offset.HasValue && filter.Limit.HasValue)

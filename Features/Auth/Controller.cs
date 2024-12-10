@@ -19,13 +19,13 @@ public class AuthController
         {
             data = await context.Request.ReadFromJsonAsync<CreateUserRequest>();
         }
-        catch
+        catch (Exception ex)
         {
             return new ApiResponse
             {
-                Status = ApiResponseStatus.Fail,
                 StatusCode = StatusCodes.Status400BadRequest,
-                Message = "Invalid JSON format.",
+                Message = "Invalid register JSON request.",
+                Error = ex,
             };
         }
 
@@ -33,9 +33,8 @@ public class AuthController
         {
             return new ApiResponse
             {
-                Status = ApiResponseStatus.Fail,
                 StatusCode = StatusCodes.Status400BadRequest,
-                Message = "JSON body cannot be empty.",
+                Message = "Register JSON request cannot be empty.",
             };
         }
 
@@ -43,7 +42,6 @@ public class AuthController
         {
             return new ApiResponse
             {
-                Status = ApiResponseStatus.Fail,
                 StatusCode = StatusCodes.Status400BadRequest,
                 Message = "Only UMak students are accepted.",
             };
@@ -55,34 +53,45 @@ public class AuthController
 
             return new ApiResponse
             {
-                Status = ApiResponseStatus.Success,
                 StatusCode = StatusCodes.Status201Created,
                 Message = "Successfully registered.",
             };
         }
-        catch(Exception ex)
+        catch (Exception ex)
         {
             return new ApiResponse
             {
-                Status = ApiResponseStatus.Error,
                 StatusCode = StatusCodes.Status500InternalServerError,
                 Message = "Server error during registration.",
-                Error = ex
+                Error = ex,
             };
         }
     }
 
     public async Task<ApiResponse> Login(HttpContext context)
     {
-        var data = await context.Request.ReadFromJsonAsync<LoginRequest>();
+        LoginRequest? data = null;
+
+        try
+        {
+            data = await context.Request.ReadFromJsonAsync<LoginRequest>();
+        }
+        catch (Exception ex)
+        {
+            return new ApiResponse
+            {
+                StatusCode = StatusCodes.Status400BadRequest,
+                Message = "Invalid login JSON request.",
+                Error = ex,
+            };
+        }
 
         if (data is null)
         {
             return new ApiResponse
             {
-                Status = ApiResponseStatus.Fail,
                 StatusCode = StatusCodes.Status400BadRequest,
-                Message = "Invalid JSON request.",
+                Message = "Register JSON request cannot be empty.",
             };
         }
 
@@ -94,7 +103,6 @@ public class AuthController
             {
                 return new ApiResponse
                 {
-                    Status = ApiResponseStatus.Fail,
                     StatusCode = StatusCodes.Status404NotFound,
                     Message = "User with the given credentials not found.",
                 };
@@ -102,7 +110,6 @@ public class AuthController
 
             return new ApiResponse
             {
-                Status = ApiResponseStatus.Success,
                 StatusCode = StatusCodes.Status200OK,
                 Message = "Successfully logged in.",
                 Data = user,
@@ -112,9 +119,8 @@ public class AuthController
         {
             return new ApiResponse
             {
-                Status = ApiResponseStatus.Error,
                 StatusCode = StatusCodes.Status500InternalServerError,
-                Message = "Failed to login.",
+                Message = "Server error during login.",
             };
         }
     }

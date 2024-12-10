@@ -36,10 +36,10 @@ public class UserRepository : IUserRepository
 
         if (filter.Name is not null)
         {
-            sql += $"AND users.email ILIKE {filter.Name}";
-            sql += $"OR users.first_name ILIKE {filter.Name}";
-            sql += $"OR users.middle_name ILIKE {filter.Name}";
-            sql += $"OR users.last_name ILIKE {filter.Name}";
+            sql += $"AND users.email ILIKE {$"%{filter.Name}%"}";
+            sql += $"OR users.first_name ILIKE {$"%{filter.Name}%"}";
+            sql += $"OR users.middle_name ILIKE {$"%{filter.Name}%"}";
+            sql += $"OR users.last_name ILIKE {$"%{filter.Name}%"}";
         }
 
         if (filter.Offset.HasValue && filter.Limit.HasValue)

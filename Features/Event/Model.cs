@@ -31,6 +31,9 @@ public record Event
     [Column("allow_visitors")]
     public bool AllowVisitors { get; set; }
 
+    [Column("total_reservation")]
+    public int TotalReservation { get; set; }
+
     public Venue Venue { get; set; } = new Venue();
 
     [JsonIgnore]

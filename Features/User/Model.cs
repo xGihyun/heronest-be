@@ -84,4 +84,10 @@ public record CreateUserRequest(
 
 public record GetUserFilter(string? Name, int? Offset, int? Limit);
 
-public record UserBriefDetail(Guid UserId, string FirstName, string? MiddleName, string LastName);
+public record UserBriefDetail(
+    Guid UserId,
+    string FirstName,
+    string? MiddleName,
+    string LastName,
+    string? AvatarUrl
+);

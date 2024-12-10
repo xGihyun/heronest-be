@@ -110,7 +110,8 @@ public class TicketRepository : ITicketRepository
                         'user_id', users.user_id,
                         'first_name', users.first_name,
                         'middle_name', users.middle_name,
-                        'last_name', users.last_name
+                        'last_name', users.last_name,
+                        'avatar_url', users.avatar_url
                     ),
                     'event', jsonb_build_object(
                         'event_id', events.event_id,

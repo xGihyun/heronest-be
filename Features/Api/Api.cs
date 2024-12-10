@@ -33,15 +33,27 @@ public class ApiHandler
             {
                 var response = await handler(context);
 
+                if (response.StatusCode >= 200 && response.StatusCode <= 299)
+                {
+                    response.Status = ApiResponseStatus.Success;
+                }
+                else if (response.StatusCode >= 400 && response.StatusCode <= 499)
+                {
+                    response.Status = ApiResponseStatus.Fail;
+                }
+                else
+                {
+                    response.Status = ApiResponseStatus.Error;
+                }
+
                 if (response.Error is not null)
                 {
-                    Console.WriteLine(response.Error);
-                    response.Status = ApiResponseStatus.Error;
+                    Console.WriteLine("Response Error: ", response.Error);
                     response.Message = $"{response.Message} - {response.Error.Message}";
                     return Results.Json(response, statusCode: response.StatusCode);
                 }
 
-                Console.WriteLine(response.Message);
+                Console.WriteLine("Response: ", response.Message);
 
                 return Results.Json(response, statusCode: response.StatusCode);
             }
@@ -55,7 +67,7 @@ public class ApiHandler
                     Message = ex.Message,
                 };
 
-                Console.WriteLine("Unhandled: ", ex);
+                Console.WriteLine("Unhandled Exception: ", ex);
 
                 return Results.Json(response, statusCode: response.StatusCode);
             }

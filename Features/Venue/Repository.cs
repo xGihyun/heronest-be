@@ -43,9 +43,7 @@ public class VenueRepository : IVenueRepository
 
         if (filter.Name is not null)
         {
-            // TODO: If this doesn't work, try the commented one.
-            sql += $"AND name ILIKE {filter.Name}";
-            /*sql += $"AND name ILIKE {$"%{filter.Name}%"}";*/
+            sql += $"AND name ILIKE {$"%{filter.Name}%"}";
         }
 
         sql += $"GROUP BY venues.venue_id";
