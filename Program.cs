@@ -1,14 +1,14 @@
 using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Heronest.Internal.Api;
-using Heronest.Internal.Auth;
-using Heronest.Internal.Database;
-using Heronest.Internal.Event;
-using Heronest.Internal.Seat;
-using Heronest.Internal.Ticket;
-using Heronest.Internal.User;
-using Heronest.Internal.Venue;
+using Heronest.Features.Api;
+using Heronest.Features.Auth;
+using Heronest.Features.Database;
+using Heronest.Features.Event;
+using Heronest.Features.Seat;
+using Heronest.Features.Ticket;
+using Heronest.Features.User;
+using Heronest.Features.Venue;
 using Microsoft.AspNetCore.Http.Json;
 using Npgsql;
 
@@ -16,7 +16,7 @@ namespace Heronest;
 
 public class Program
 {
-    public static void Main(string[] args)
+    public static async Task Main(string[] args)
     {
         // TODO: Put this in Configuration
         var connectionString =
@@ -27,8 +27,7 @@ public class Program
         dataSourceBuilder.MapEnum<Sex>();
         dataSourceBuilder.MapEnum<SeatStatus>();
 
-        var dataSource = dataSourceBuilder.Build();
-        /*var conn = await dataSource.OpenConnectionAsync();*/
+        await using var dataSource = dataSourceBuilder.Build();
 
         var builder = WebApplication.CreateBuilder(args);
 
@@ -75,21 +74,14 @@ public class Program
         app.UseHttpsRedirection();
         app.UseAuthorization();
 
-
-        var ticketRepository = new TicketRepository(dataSource);
-        var ticketController = new TicketController(ticketRepository);
-
         var userRepository = new UserRepository(dataSource);
-        var userController = new UserController(userRepository, ticketRepository);
+        var userController = new UserController(userRepository);
 
-        app.MapGet("/api/users", ApiHandler.Handle(userController.Get))
+        app.MapGet("/api/users", ApiHandler.Handle(userController.GetMany))
             .WithName("GetUsers")
             .WithOpenApi();
         app.MapGet("/api/users/{userId}", ApiHandler.Handle(userController.GetById))
             .WithName("GetUser")
-            .WithOpenApi();
-        app.MapGet("/api/users/{userId}/tickets", ApiHandler.Handle(userController.GetTickets))
-            .WithName("GetUserTickets")
             .WithOpenApi();
         app.MapPatch("/api/users/{userId}", ApiHandler.Handle(userController.Update))
             .WithName("UpdateUser")
@@ -97,11 +89,9 @@ public class Program
         app.MapPost("/api/users", ApiHandler.Handle(userController.Create))
             .WithName("CreateUser")
             .WithOpenApi();
-        app.MapPost("/api/users/{userId}/details", ApiHandler.Handle(userController.CreateDetails))
-            .WithName("CreateUserDetail")
-            .WithOpenApi();
 
-        var authController = new AuthController(new AuthRepository(dataSource, userRepository));
+        var authRepository = new AuthRepository(dataSource, userRepository);
+        var authController = new AuthController(authRepository);
 
         app.MapPost("/api/register", ApiHandler.Handle(authController.Register))
             .WithName("Register")
@@ -110,9 +100,35 @@ public class Program
             .WithName("Login")
             .WithOpenApi();
 
-        var venueController = new VenueController(new VenueRepository(dataSource));
+        var ticketRepository = new TicketRepository(dataSource);
+        var ticketController = new TicketController(ticketRepository);
 
-        app.MapGet("/api/venues", ApiHandler.Handle(venueController.Get))
+        app.MapGet("/api/tickets", ApiHandler.Handle(ticketController.GetMany))
+            .WithName("GetTickets")
+            .WithOpenApi();
+        app.MapGet(
+                "/api/tickets/{ticketNumber}",
+                ApiHandler.Handle(ticketController.GetByTicketNumber)
+            )
+            .WithName("GetByTicketNumber")
+            .WithOpenApi();
+        app.MapPost(
+                "/api/tickets/{ticketNumber}/pdf",
+                ApiHandler.Handle(ticketController.GeneratePdf)
+            )
+            .WithName("GenerateTicketPdf")
+            .WithOpenApi();
+        app.MapPost("/api/tickets", ApiHandler.Handle(ticketController.Create))
+            .WithName("CreateTicket")
+            .WithOpenApi();
+        app.MapPatch("/api/tickets/{ticketId}", ApiHandler.Handle(ticketController.Update))
+            .WithName("UpdateTicket")
+            .WithOpenApi();
+
+        var venueRepository = new VenueRepository(dataSource);
+        var venueController = new VenueController(venueRepository);
+
+        app.MapGet("/api/venues", ApiHandler.Handle(venueController.GetMany))
             .WithName("GetVenues")
             .WithOpenApi();
         app.MapPost("/api/venues", ApiHandler.Handle(venueController.Create))
@@ -122,39 +138,34 @@ public class Program
             .WithName("UpdateVenue")
             .WithOpenApi();
 
-        app.MapGet("/api/tickets", ApiHandler.Handle(ticketController.Get))
-            .WithName("GetTickets")
-            .WithOpenApi();
-        app.MapGet("/api/tickets/{ticketNumber}", ApiHandler.Handle(ticketController.GetByTicketNumber))
-            .WithName("GetByTicketNumber")
-            .WithOpenApi();
-        app.MapPost("/api/tickets", ApiHandler.Handle(ticketController.Create))
-            .WithName("CreateTicket")
-            .WithOpenApi();
-        app.MapPatch("/api/tickets/{ticketId}", ApiHandler.Handle(ticketController.Update))
-            .WithName("UpdateTicket")
-            .WithOpenApi();
+        var seatRepository = new SeatRepository(dataSource, ticketRepository);
+        var seatController = new SeatController(seatRepository);
 
-        var seatController = new SeatController(new SeatRepository(dataSource, ticketRepository));
-
-        app.MapGet("/api/venues/{venueId}/seats", ApiHandler.Handle(seatController.Get))
+        app.MapGet("/api/venues/{venueId}/seats", ApiHandler.Handle(seatController.GetMany))
             .WithName("GetVenueSeats")
             .WithOpenApi();
+        /*app.MapPost(*/
+        /*        "/api/venues/{venueId}/seats/{seatId}",*/
+        /*        ApiHandler.Handle(seatController.Create)*/
+        /*    )*/
+        /*    .WithName("CreateVenueSeat")*/
+        /*    .WithOpenApi();*/
         app.MapPost("/api/venues/{venueId}/seats", ApiHandler.Handle(seatController.CreateMany))
             .WithName("CreateVenueSeats")
             .WithOpenApi();
 
-        var seatSectionController = new SeatSectionController(
-            new SeatSectionRepository(dataSource)
-        );
+        /*var seatSectionController = new SeatSectionController(*/
+        /*    new SeatSectionRepository(dataSource)*/
+        /*);*/
+        /**/
+        /*app.MapPost("/api/seat-section", ApiHandler.Handle(seatSectionController.Create))*/
+        /*    .WithName("CreateSeatSection")*/
+        /*    .WithOpenApi();*/
 
-        app.MapPost("/api/seat-section", ApiHandler.Handle(seatSectionController.Create))
-            .WithName("CreateSeatSection")
-            .WithOpenApi();
+        var eventRepository = new EventRepository(dataSource);
+        var eventController = new EventController(eventRepository);
 
-        var eventController = new EventController(new EventRepository(dataSource));
-
-        app.MapGet("/api/events", ApiHandler.Handle(eventController.Get))
+        app.MapGet("/api/events", ApiHandler.Handle(eventController.GetMany))
             .WithName("GetEvents")
             .WithOpenApi();
         app.MapPost("/api/events", ApiHandler.Handle(eventController.Create))
