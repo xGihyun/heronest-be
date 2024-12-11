@@ -118,6 +118,12 @@ public class Program
             )
             .WithName("GenerateTicketPdf")
             .WithOpenApi();
+        app.MapGet(
+                "/api/ticket-batch",
+                ApiHandler.Handle(ticketController.GeneratePdfBatch)
+            )
+            .WithName("GenerateTicketPdfBatch")
+            .WithOpenApi();
         app.MapPost("/api/tickets", ApiHandler.Handle(ticketController.Create))
             .WithName("CreateTicket")
             .WithOpenApi();

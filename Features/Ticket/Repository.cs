@@ -1,3 +1,4 @@
+using System.IO.Compression;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Dapper;
@@ -5,6 +6,7 @@ using DapperQueryBuilder;
 using iText.IO.Image;
 using iText.Kernel.Colors;
 using iText.Kernel.Font;
+using iText.Kernel.Geom;
 using iText.Kernel.Pdf;
 using iText.Layout;
 using iText.Layout.Element;
@@ -24,7 +26,8 @@ public interface ITicketRepository
     Task<Ticket?> GetByTicketNumber(string ticketNumber);
     Task<Ticket> Create(CreateTicketRequest data);
     Task Update(UpdateTicketRequest data);
-    void GeneratePdf(Ticket ticket);
+    void GeneratePdf(Ticket ticket, string? templatePath = null, string? outputPath = null);
+    string GeneratePdfBatch(List<Ticket> tickets);
 }
 
 public class TicketRepository : ITicketRepository
@@ -222,11 +225,11 @@ public class TicketRepository : ITicketRepository
         await sql.ExecuteAsync();
     }
 
-    public void GeneratePdf(Ticket ticket)
+    public void GeneratePdf(Ticket ticket, string? templatePath = null, string? outputPath = null)
     {
         // NOTE: These paths should be in a configuration
-        string templatePath = "/home/gihyun/Development/svelte/heronest/static/ticket-template.pdf";
-        string outputPath = Path.Combine(
+        templatePath ??= "/home/gihyun/Development/svelte/heronest/static/ticket-template.pdf";
+        outputPath ??= Path.Combine(
             "/home/gihyun/Development/svelte/heronest/static/storage/tickets",
             $"Ticket-{ticket.TicketNumber}.pdf"
         );
@@ -392,7 +395,85 @@ public class TicketRepository : ITicketRepository
         }
     }
 
-    static void AddRotatedText(
+    public string GeneratePdfBatch(List<Ticket> tickets)
+    {
+        const float shortBondWidth = 612; // 8.5 inches in points
+        const float shortBondHeight = 792; // 11 inches in points
+        const int ticketsPerPage = 4;
+
+        string tempFolder = Path.Combine(Path.GetTempPath(), "TempTickets");
+        string batchedFolder = Path.Combine(Path.GetTempPath(), "BatchedTickets");
+        string batchOutput =
+            "/home/gihyun/Development/svelte/heronest/static/storage/tickets/batches";
+        string zipName = $"Tickets - {tickets[0].Reservation.Event.Name}.zip";
+        string zipOutputPath = Path.Combine(batchOutput, zipName);
+
+        if (!Directory.Exists(batchOutput))
+        {
+            Directory.CreateDirectory(batchOutput);
+        }
+        Directory.CreateDirectory(tempFolder);
+        Directory.CreateDirectory(batchedFolder);
+
+        // Generate individual ticket PDFs
+        foreach (var ticket in tickets)
+        {
+            string ticketPath = Path.Combine(tempFolder, $"Ticket-{ticket.TicketNumber}.pdf");
+            this.GeneratePdf(ticket, outputPath: ticketPath);
+        }
+
+        // Combine tickets into batches
+        var ticketFiles = Directory.GetFiles(tempFolder, "*.pdf");
+        int batchIndex = 0;
+
+        for (int i = 0; i < ticketFiles.Length; i += ticketsPerPage)
+        {
+            string batchPdfPath = Path.Combine(batchedFolder, $"Batch-{batchIndex + 1}.pdf");
+
+            using (PdfWriter writer = new PdfWriter(batchPdfPath))
+            using (PdfDocument batchDoc = new PdfDocument(writer))
+            {
+                batchDoc.AddNewPage(new PageSize(shortBondWidth, shortBondHeight));
+
+                for (int j = 0; j < ticketsPerPage && i + j < ticketFiles.Length; j++)
+                {
+                    string ticketFile = ticketFiles[i + j];
+
+                    using (PdfReader ticketReader = new PdfReader(ticketFile))
+                    using (PdfDocument ticketDoc = new PdfDocument(ticketReader))
+                    {
+                        var ticketPage = ticketDoc.GetFirstPage();
+
+                        float ticketHeight = shortBondHeight / ticketsPerPage;
+                        float yOffset = shortBondHeight - ((j + 1) * ticketHeight);
+
+                        var pdfCanvas = new iText.Kernel.Pdf.Canvas.PdfCanvas(
+                            batchDoc.GetFirstPage()
+                        );
+                        pdfCanvas.AddXObjectAt(ticketPage.CopyAsFormXObject(batchDoc), 0, yOffset);
+                    }
+                }
+            }
+
+            batchIndex++;
+        }
+
+        // Create zip file
+        string zipFilePath = zipOutputPath;
+        if (File.Exists(zipFilePath))
+        {
+            File.Delete(zipFilePath);
+        }
+        ZipFile.CreateFromDirectory(batchedFolder, zipFilePath);
+
+        // Clean up temporary files
+        Directory.Delete(tempFolder, true);
+        Directory.Delete(batchedFolder, true);
+
+        return zipName;
+    }
+
+    private static void AddRotatedText(
         Document document,
         string text,
         float x,
@@ -409,5 +490,71 @@ public class TicketRepository : ITicketRepository
             .SetFontColor(color)
             .SetRotationAngle(Math.PI * angle / 180);
         document.Add(paragraph.SetFixedPosition(x, y, 200));
+    }
+
+    private static void AddTicketDetails(
+        Document document,
+        Ticket ticket,
+        float xOffset,
+        float yOffset,
+        PdfFont font,
+        PdfFont boldFont,
+        DeviceRgb darkBlue,
+        DeviceRgb yellow
+    )
+    {
+        float nameY = yOffset + 350;
+        document.Add(
+            new Paragraph($"{ticket.Reservation.User.FirstName} {ticket.Reservation.User.LastName}")
+                .SetFont(font)
+                .SetFontSize(12)
+                .SetFontColor(ColorConstants.BLACK)
+                .SetFixedPosition(xOffset + 10, nameY, 200)
+        );
+
+        document.Add(
+            new Paragraph(ticket.Reservation.Seat.SeatNumber)
+                .SetFont(font)
+                .SetFontSize(12)
+                .SetFontColor(ColorConstants.BLACK)
+                .SetFixedPosition(xOffset + 10, nameY - 15, 200)
+        );
+
+        // Add other details such as event name, dates, and times as needed, similar to above.
+
+        // Generate and add QR Code
+        var qrGenerator = new QRCodeGenerator();
+        var qrData = qrGenerator.CreateQrCode(ticket.TicketNumber, QRCodeGenerator.ECCLevel.Q);
+        var qrCode = new PngByteQRCode(qrData);
+        byte[] qrBytes = qrCode.GetGraphic(
+            20,
+            darkColor: Color.FromArgb(255, 255, 255),
+            lightColor: Color.FromArgb(0, 0, 0, 0)
+        );
+
+        var qrImage = ImageDataFactory.Create(qrBytes);
+        document.Add(
+            new iText.Layout.Element.Image(qrImage)
+                .SetFixedPosition(xOffset + 200, yOffset + 300)
+                .ScaleAbsolute(80, 80)
+        );
+    }
+
+    private static void AddTemplatePage(
+        PdfDocument targetPdf,
+        PdfDocument templateDoc,
+        float xOffset,
+        float yOffset
+    )
+    {
+        // Import the page from the template PDF into the target PDF
+        var templatePage = templateDoc.GetFirstPage();
+        var importedPage = targetPdf.AddPage(templatePage.CopyTo(targetPdf));
+
+        // Adjust the position using a canvas overlay
+        var canvas = new iText.Kernel.Pdf.Canvas.PdfCanvas(importedPage);
+        canvas.SaveState();
+        canvas.ConcatMatrix(1, 0, 0, 1, xOffset, yOffset);
+        canvas.RestoreState();
     }
 }
