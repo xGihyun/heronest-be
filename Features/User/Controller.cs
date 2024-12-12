@@ -175,4 +175,52 @@ public class UserController
             };
         }
     }
+
+    public async Task<ApiResponse> UpdateAvatar(HttpContext context)
+    {
+        Guid userId;
+
+        if (!Guid.TryParse(context.GetRouteValue("userId")?.ToString(), out userId))
+        {
+            return new ApiResponse
+            {
+                Status = ApiResponseStatus.Fail,
+                StatusCode = StatusCodes.Status400BadRequest,
+                Message = "Invalid user ID.",
+            };
+        }
+
+        var data = await context.Request.ReadFromJsonAsync<UserAvatar>();
+
+        if (data is null)
+        {
+            return new ApiResponse
+            {
+                Status = ApiResponseStatus.Fail,
+                StatusCode = StatusCodes.Status400BadRequest,
+                Message = "Invalid JSON request.",
+            };
+        }
+
+        try
+        {
+            await this.userRepository.UpdateAvatar(data);
+
+            return new ApiResponse
+            {
+                Status = ApiResponseStatus.Success,
+                StatusCode = StatusCodes.Status200OK,
+                Message = "Successfully updated user avatar.",
+            };
+        }
+        catch
+        {
+            return new ApiResponse
+            {
+                Status = ApiResponseStatus.Error,
+                StatusCode = StatusCodes.Status500InternalServerError,
+                Message = "Failed to update user avatar.",
+            };
+        }
+    }
 }

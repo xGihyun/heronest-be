@@ -82,6 +82,11 @@ public record CreateUserRequest(
     [property: Column("sex")] Sex Sex
 );
 
+public record UserAvatar(
+    [property: Column("user_id")] Guid UserId,
+    [property: Column("avatar_url")] string? AvatarUrl
+);
+
 public record GetUserFilter(string? Name, int? Offset, int? Limit);
 
 public record UserBriefDetail(

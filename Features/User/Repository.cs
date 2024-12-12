@@ -10,6 +10,7 @@ public interface IUserRepository
     Task<GetUserResponse?> GetById(Guid userId);
     Task Create(CreateUserRequest data);
     Task Update(Person data);
+    Task UpdateAvatar(UserAvatar data);
 }
 
 public class UserRepository : IUserRepository
@@ -59,7 +60,7 @@ public class UserRepository : IUserRepository
         var sql = conn.QueryBuilder(
             $@"
             SELECT 
-                user_id, email, role, first_name, middle_name, last_name, birth_date, sex
+                user_id, email, role, first_name, middle_name, last_name, birth_date, sex, avatar_url
             FROM users
             WHERE user_id = ({userId})
             "
@@ -110,6 +111,21 @@ public class UserRepository : IUserRepository
                 last_name = {user.LastName},
                 birth_date = {user.BirthDate},
                 sex = {user.Sex}
+            WHERE user_id = {user.UserId}
+            "
+        );
+
+        await sql.ExecuteAsync();
+    }
+
+    public async Task UpdateAvatar(UserAvatar user)
+    {
+        await using var conn = await this.dataSource.OpenConnectionAsync();
+
+        var sql = conn.QueryBuilder(
+            $@"
+            UPDATE users 
+            SET avatar_url = {user.AvatarUrl}
             WHERE user_id = {user.UserId}
             "
         );

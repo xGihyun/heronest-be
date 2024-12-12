@@ -86,6 +86,9 @@ public class Program
         app.MapPatch("/api/users/{userId}", ApiHandler.Handle(userController.Update))
             .WithName("UpdateUser")
             .WithOpenApi();
+        app.MapPatch("/api/users/{userId}/avatar", ApiHandler.Handle(userController.UpdateAvatar))
+            .WithName("UpdateUserAvatar")
+            .WithOpenApi();
         app.MapPost("/api/users", ApiHandler.Handle(userController.Create))
             .WithName("CreateUser")
             .WithOpenApi();
