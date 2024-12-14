@@ -30,6 +30,16 @@ public class TicketController
         {
             var ticket = await this.repository.GetByTicketNumber(ticketNumber);
 
+            if (ticket is null)
+            {
+                return new ApiResponse
+                {
+                    Status = ApiResponseStatus.Fail,
+                    StatusCode = StatusCodes.Status404NotFound,
+                    Message = "Ticket not found.",
+                };
+            }
+
             return new ApiResponse
             {
                 Status = ApiResponseStatus.Success,
@@ -175,7 +185,7 @@ public class TicketController
             {
                 Status = ApiResponseStatus.Success,
                 StatusCode = StatusCodes.Status201Created,
-                Message = "Successfully updated.",
+                Message = "Successfully updated ticket.",
             };
         }
         catch (Exception ex)
@@ -236,7 +246,6 @@ public class TicketController
             var filter = new GetTicketFilter(null, null, eventId, null);
             var tickets = await this.repository.GetMany(filter);
 
-            Console.WriteLine(tickets.Length);
             if (tickets.Length < 1)
             {
                 return new ApiResponse
@@ -252,7 +261,7 @@ public class TicketController
             {
                 StatusCode = StatusCodes.Status201Created,
                 Message = "Successfully generated ticket PDF.",
-                Data = outputPath
+                Data = outputPath,
             };
         }
         catch (Exception ex)

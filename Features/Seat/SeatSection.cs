@@ -5,6 +5,7 @@ using Npgsql;
 
 namespace Heronest.Features.Seat;
 
+// NOTE: This feature is not used
 public class CreateSeatSectionRequest
 {
     [Column("name")]

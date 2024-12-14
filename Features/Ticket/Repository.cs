@@ -217,7 +217,7 @@ public class TicketRepository : ITicketRepository
         var sql = conn.QueryBuilder(
             $@"
             UPDATE tickets 
-            SET status = {data.Status}
+            SET status = {data.Status.ToString().ToLower()}::ticket_status
             WHERE ticket_id = {data.TicketId}
             "
         );
@@ -490,71 +490,5 @@ public class TicketRepository : ITicketRepository
             .SetFontColor(color)
             .SetRotationAngle(Math.PI * angle / 180);
         document.Add(paragraph.SetFixedPosition(x, y, 200));
-    }
-
-    private static void AddTicketDetails(
-        Document document,
-        Ticket ticket,
-        float xOffset,
-        float yOffset,
-        PdfFont font,
-        PdfFont boldFont,
-        DeviceRgb darkBlue,
-        DeviceRgb yellow
-    )
-    {
-        float nameY = yOffset + 350;
-        document.Add(
-            new Paragraph($"{ticket.Reservation.User.FirstName} {ticket.Reservation.User.LastName}")
-                .SetFont(font)
-                .SetFontSize(12)
-                .SetFontColor(ColorConstants.BLACK)
-                .SetFixedPosition(xOffset + 10, nameY, 200)
-        );
-
-        document.Add(
-            new Paragraph(ticket.Reservation.Seat.SeatNumber)
-                .SetFont(font)
-                .SetFontSize(12)
-                .SetFontColor(ColorConstants.BLACK)
-                .SetFixedPosition(xOffset + 10, nameY - 15, 200)
-        );
-
-        // Add other details such as event name, dates, and times as needed, similar to above.
-
-        // Generate and add QR Code
-        var qrGenerator = new QRCodeGenerator();
-        var qrData = qrGenerator.CreateQrCode(ticket.TicketNumber, QRCodeGenerator.ECCLevel.Q);
-        var qrCode = new PngByteQRCode(qrData);
-        byte[] qrBytes = qrCode.GetGraphic(
-            20,
-            darkColor: Color.FromArgb(255, 255, 255),
-            lightColor: Color.FromArgb(0, 0, 0, 0)
-        );
-
-        var qrImage = ImageDataFactory.Create(qrBytes);
-        document.Add(
-            new iText.Layout.Element.Image(qrImage)
-                .SetFixedPosition(xOffset + 200, yOffset + 300)
-                .ScaleAbsolute(80, 80)
-        );
-    }
-
-    private static void AddTemplatePage(
-        PdfDocument targetPdf,
-        PdfDocument templateDoc,
-        float xOffset,
-        float yOffset
-    )
-    {
-        // Import the page from the template PDF into the target PDF
-        var templatePage = templateDoc.GetFirstPage();
-        var importedPage = targetPdf.AddPage(templatePage.CopyTo(targetPdf));
-
-        // Adjust the position using a canvas overlay
-        var canvas = new iText.Kernel.Pdf.Canvas.PdfCanvas(importedPage);
-        canvas.SaveState();
-        canvas.ConcatMatrix(1, 0, 0, 1, xOffset, yOffset);
-        canvas.RestoreState();
     }
 }
