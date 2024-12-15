@@ -1,0 +1,2 @@
+ALTER TABLE seats
+ADD COLUMN metadata JSONB NOT NULL;
