@@ -30,6 +30,16 @@ public class TicketController
         {
             var ticket = await this.repository.GetByTicketNumber(ticketNumber);
 
+            if (ticket is null)
+            {
+                return new ApiResponse
+                {
+                    Status = ApiResponseStatus.Fail,
+                    StatusCode = StatusCodes.Status404NotFound,
+                    Message = "Ticket not found.",
+                };
+            }
+
             return new ApiResponse
             {
                 Status = ApiResponseStatus.Success,
@@ -175,7 +185,7 @@ public class TicketController
             {
                 Status = ApiResponseStatus.Success,
                 StatusCode = StatusCodes.Status201Created,
-                Message = "Successfully updated.",
+                Message = "Successfully updated ticket.",
             };
         }
         catch (Exception ex)
@@ -220,6 +230,44 @@ public class TicketController
             return new ApiResponse
             {
                 Status = ApiResponseStatus.Error,
+                StatusCode = StatusCodes.Status500InternalServerError,
+                Message = "Failed to create ticket PDF.",
+                Error = ex,
+            };
+        }
+    }
+
+    public async Task<ApiResponse> GeneratePdfBatch(HttpContext context)
+    {
+        Guid? eventId = QueryParameter.TryGetValueFromStruct<Guid>(context, "eventId");
+
+        try
+        {
+            var filter = new GetTicketFilter(null, null, eventId, null);
+            var tickets = await this.repository.GetMany(filter);
+
+            if (tickets.Length < 1)
+            {
+                return new ApiResponse
+                {
+                    StatusCode = StatusCodes.Status404NotFound,
+                    Message = "No tickets to generate.",
+                };
+            }
+
+            string outputPath = this.repository.GeneratePdfBatch(tickets.ToList());
+
+            return new ApiResponse
+            {
+                StatusCode = StatusCodes.Status201Created,
+                Message = "Successfully generated ticket PDF.",
+                Data = outputPath,
+            };
+        }
+        catch (Exception ex)
+        {
+            return new ApiResponse
+            {
                 StatusCode = StatusCodes.Status500InternalServerError,
                 Message = "Failed to create ticket PDF.",
                 Error = ex,

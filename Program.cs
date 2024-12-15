@@ -86,6 +86,9 @@ public class Program
         app.MapPatch("/api/users/{userId}", ApiHandler.Handle(userController.Update))
             .WithName("UpdateUser")
             .WithOpenApi();
+        app.MapPatch("/api/users/{userId}/avatar", ApiHandler.Handle(userController.UpdateAvatar))
+            .WithName("UpdateUserAvatar")
+            .WithOpenApi();
         app.MapPost("/api/users", ApiHandler.Handle(userController.Create))
             .WithName("CreateUser")
             .WithOpenApi();
@@ -117,6 +120,12 @@ public class Program
                 ApiHandler.Handle(ticketController.GeneratePdf)
             )
             .WithName("GenerateTicketPdf")
+            .WithOpenApi();
+        app.MapGet(
+                "/api/ticket-batch",
+                ApiHandler.Handle(ticketController.GeneratePdfBatch)
+            )
+            .WithName("GenerateTicketPdfBatch")
             .WithOpenApi();
         app.MapPost("/api/tickets", ApiHandler.Handle(ticketController.Create))
             .WithName("CreateTicket")

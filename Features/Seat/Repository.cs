@@ -37,6 +37,13 @@ public class SeatRepository : ISeatRepository
                 seats.seat_section_id, 
                 seats.venue_id, 
                 seats.metadata, 
+            "
+        );
+
+        if (filter.EventId.HasValue)
+        {
+            sql +=
+                @$"
                 CASE 
                     WHEN users.user_id IS NOT NULL THEN 
                         jsonb_build_object (
@@ -58,20 +65,31 @@ public class SeatRepository : ISeatRepository
                     ELSE NULL
                 END AS reservation_json
             FROM seats
-            LEFT JOIN tickets 
-                ON tickets.seat_id = seats.seat_id  
-            "
-        );
+                ";
+        }
+        else
+        {
+            sql +=
+                @$"
+                NULL as reservation_json
+            FROM seats
+                ";
+        }
 
         if (filter.EventId.HasValue)
         {
-            sql += $"AND tickets.event_id = {filter.EventId}";
+            sql +=
+                @$"
+                LEFT JOIN tickets 
+                    ON tickets.seat_id = seats.seat_id  
+                AND tickets.event_id = {filter.EventId}
+                LEFT JOIN users ON users.user_id = tickets.user_id
+                LEFT JOIN events ON events.event_id = tickets.event_id
+            ";
         }
 
         sql +=
             $@"
-            LEFT JOIN users ON users.user_id = tickets.user_id
-            LEFT JOIN events ON events.event_id = tickets.event_id
             WHERE seats.venue_id = {venueId} 
             ORDER BY seats.seat_number::int
         ";
